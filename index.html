@@ -64,7 +64,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .price small{display:block;font-size:12px;color:var(--muted)}
 .price b{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
 .price .mine b{color:var(--brand)}
-.alert{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:14px;font-weight:500}
+.alert{white-space:pre-line;margin-top:10px;padding:10px 12px;border-radius:10px;font-size:14px;font-weight:500}
 .alert.bad{background:var(--bad-bg);color:var(--bad)}
 .alert.warn{background:var(--warn-bg);color:var(--warn)}
 
@@ -269,7 +269,7 @@ async function offersAll(){if(!DB.ok)return DB.offers;try{return await rq(DB.db.
 
 // ---------- state ----------
 const DEF={
-  markupPct:0,markupFixed:0,round:5,base:'price',showPrice:true,codeInTitle:true,
+  markupPct:0,markupFixed:0,round:5,base:'price',showPrice:true,codeInTitle:true,useSearch:true,
   geminiKey:'',model:'gemini-3.5-flash',tags:8,cta:'📩 Замовлення — в Direct',extra:'',
   igId:'',igToken:'',host:'https://graph.facebook.com',ver:'v23.0',
   stop:"victoria's secret, nike, adidas, puma, gucci, louis vuitton, chanel, dior, prada, versace, rolex, apple, samsung, jbl, dyson, lego"
@@ -367,7 +367,7 @@ function renderResult(){
       ${P.err?`<div class="alert bad">${esc(P.err)}</div>`:''}
       ${P.items?`<div class="list">${P.items.map((it,i)=>`<button data-act="chooseS" data-i="${i}"><b>${esc(it.o.code)}</b> · ${esc(it.o.nameUa||it.o.name)}<div class="hint">${esc(it.reason)}</div><div class="hint">${fmt(it.o.price)} грн · у наявності ${it.o.qty} шт</div></button>`).join('')}</div>`:''}
       ${!P.busy?'<button class="btn small mt" data-act="repick">Підібрати інші</button>':''}
-      <p class="hint mt">Це оцінка Gemini за даними пошуку в інтернеті, а не точна статистика запитів. Наявність береться з вашого фіду${age>=2?`, який оновлено ${age} дн. тому, тож вона могла змінитися`:''}.</p></section>`;
+      <p class="hint mt">${S.settings.useSearch!==false?'Це оцінка Gemini за даними пошуку в інтернеті':'Це оцінка Gemini за сезоном і власними знаннями, без пошуку'}, а не точна статистика запитів. Наявність береться з вашого фіду${age>=2?`, який оновлено ${age} дн. тому, тож вона могла змінитися`:''}.</p></section>`;
     return;
   }
   if(P.type==='list'){
@@ -573,16 +573,17 @@ async function pickProducts(){
     const pool=candidates();
     if(pool.length<5)throw new Error('Замало товарів у наявності для підбору. Завантажте свіжий фід.');
     const list=pool.map(o=>`${o.code} | ${(o.nameUa||o.name).slice(0,70)} | ${o.cat}${o.sub?' / '+o.sub:''} | ${fmt(o.price)} грн`).join('\n');
+    const useSearch=s.useSearch!==false;
     const today=new Date().toLocaleDateString('uk-UA',{day:'numeric',month:'long',year:'numeric'});
     const sys=`Ти — аналітик попиту для українського інтернет-магазину. Сьогодні ${today}.
-З наданого списку товарів (формат: артикул | назва | категорія | ціна) обери 3, які зараз найімовірніше активно шукають в Україні. Врахуй сезон, найближчі свята, актуальні новини й тренди. Скористайся пошуком Google, щоб перевірити попит.
+З наданого списку товарів (формат: артикул | назва | категорія | ціна) обери 3, які зараз найімовірніше активно шукають в Україні. Врахуй сезон, найближчі свята, актуальні новини й тренди. ${useSearch?'Скористайся пошуком Google, щоб перевірити попит.':'Пошуку в тебе немає: спирайся на сезон, свята й загальні знання про попит.'}
 Обирай тільки артикули зі списку, нічого не вигадуй. Товари мають бути з різних категорій.
 Відповідай ТІЛЬКИ JSON-масивом без додаткового тексту: [{"code":"ws123","reason":"чому актуально зараз, українською, до 15 слів"}]`;
     const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(s.model||'gemini-3.5-flash')}:generateContent`;
     const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':s.geminiKey},body:JSON.stringify({
       systemInstruction:{parts:[{text:sys}]},
       contents:[{role:'user',parts:[{text:list}]}],
-      tools:[{google_search:{}}],
+      ...(useSearch?{tools:[{google_search:{}}]}:{}),
       generationConfig:{temperature:0.7}
     })});
     const j=await res.json().catch(()=>({}));
@@ -596,7 +597,12 @@ async function pickProducts(){
     if(!items.length)throw new Error('Gemini запропонував артикули, яких немає у списку. Спробуйте ще раз.');
     if(S.cur!==me)return;
     me.items=items;
-  }catch(e){if(S.cur!==me)return;me.err=e.message||String(e)}
+  }catch(e){
+    if(S.cur!==me)return;
+    me.err=e.message||String(e);
+    if(s.useSearch!==false&&/quota|billing|exceeded|RESOURCE_EXHAUSTED/i.test(me.err))
+      me.err='Пошук Google в Gemini недоступний на безкоштовному тарифі. Увімкніть оплату в Google AI Studio або вимкніть «Пошук Google при автопідборі» в налаштуваннях.\n\n'+me.err;
+  }
   me.busy=false;renderResult();
 }
 
@@ -647,6 +653,7 @@ function renderSettings(){
     fld('model','Модель')+
     fld('tags','Кількість хештегів',{type:'number'})+
     `<label class="chk"><input type="checkbox" data-k="codeInTitle" ${S.settings.codeInTitle?'checked':''}> Артикул у дужках в кінці заголовка</label>`+
+    `<label class="chk"><input type="checkbox" data-k="useSearch" ${S.settings.useSearch?'checked':''}> Пошук Google при автопідборі<span class="hint" style="display:block">Потребує платного тарифу Gemini API (є безкоштовний місячний ліміт). Без нього підбір іде за сезоном і знаннями моделі.</span></label>`+
     fld('cta','Рядок після ціни',{ph:'📩 Замовлення — в Direct'})+
     fld('extra','Додаткові вказівки для стилю',{rows:1,ph:'Наприклад: звертайся на «ви», менше емодзі'});
   $('#fIg').innerHTML=
