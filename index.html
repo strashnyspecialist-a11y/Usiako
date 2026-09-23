@@ -123,6 +123,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--br
     <section class="sec">
       <div class="tag"><span>арт.</span><input id="q" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ws78472" aria-label="Артикул товару"></div>
       <button class="btn primary block mt" id="btnFind">Знайти товар</button>
+      <button class="btn block mt" id="btnPick">Підібрати товар автоматично</button>
       <p class="hint mt">Можна ввести артикул із «ws» або без, а також частину назви.</p>
     </section>
     <div id="result"></div>
@@ -268,12 +269,12 @@ async function offersAll(){if(!DB.ok)return DB.offers;try{return await rq(DB.db.
 
 // ---------- state ----------
 const DEF={
-  markupPct:0,markupFixed:0,round:5,base:'price',showPrice:true,
+  markupPct:0,markupFixed:0,round:5,base:'price',showPrice:true,codeInTitle:true,
   geminiKey:'',model:'gemini-3.5-flash',tags:8,cta:'📩 Замовлення — в Direct',extra:'',
   igId:'',igToken:'',host:'https://graph.facebook.com',ver:'v23.0',
   stop:"victoria's secret, nike, adidas, puma, gucci, louis vuitton, chanel, dior, prada, versace, rolex, apple, samsung, jbl, dyson, lego"
 };
-const S={settings:{...DEF},offers:[],byCode:new Map(),meta:null,cur:null};
+const S={settings:{...DEF},offers:[],byCode:new Map(),meta:null,cur:null,posted:{}};
 
 function setOffers(rows){S.offers=rows;S.byCode=new Map(rows.map(o=>[o.key,o]))}
 
@@ -307,6 +308,11 @@ function findProducts(q){
 function isJpeg(u){return /\.jpe?g($|\?)/i.test(u)}
 function composeCaption(o,text,hashtags,s=S.settings){
   let out=text.trim();
+  if(s.codeInTitle&&o.code){
+    const lines=out.split('\n');
+    if(!lines[0].includes(o.code))lines[0]=lines[0].replace(/\s+$/,'')+' ('+o.code+')';
+    out=lines.join('\n');
+  }
   if(s.showPrice)out+=`\n\n💰 Ціна: ${fmt(finalPrice(o,s))} грн`;
   if(s.cta)out+=(s.showPrice?'\n':'\n\n')+s.cta.trim();
   const tags=(hashtags||[]).map(t=>'#'+String(t).replace(/^#+/,'').replace(/\s+/g,'')).filter(t=>t.length>1).slice(0,+s.tags||0);
@@ -343,7 +349,9 @@ async function doFind(){
   renderResult();
 }
 function openProduct(o,viaId){
-  const sel=[];for(let i=0;i<o.pics.length&&sel.length<10;i++)sel.push(i);
+  const sel=[];
+  for(let i=0;i<o.pics.length&&sel.length<10;i++)if(isJpeg(o.pics[i]))sel.push(i);
+  if(!sel.length)for(let i=0;i<o.pics.length&&sel.length<10;i++)sel.push(i);
   S.cur={type:'rec',rec:o,sel,all:false,caption:'',busy:false,confirm:false,ack:false,pub:null,viaId};
   renderResult();
   $('#result').scrollIntoView({behavior:'smooth',block:'start'});
@@ -352,6 +360,16 @@ function renderResult(){
   const P=S.cur,box=$('#result');
   if(!P){box.innerHTML='';return}
   if(P.type==='none'){box.innerHTML=`<section class="sec"><p class="empty">Нічого не знайдено за «${esc(P.q)}». Перевірте артикул: він має вигляд ws78472.</p></section>`;return}
+  if(P.type==='suggest'){
+    const age=S.meta?.at?Math.floor((Date.now()-S.meta.at)/864e5):null;
+    box.innerHTML=`<section class="sec"><h2>Що зараз шукають</h2>
+      ${P.busy?'<button class="btn block" disabled><span class="spin"></span> Gemini аналізує попит…</button>':''}
+      ${P.err?`<div class="alert bad">${esc(P.err)}</div>`:''}
+      ${P.items?`<div class="list">${P.items.map((it,i)=>`<button data-act="chooseS" data-i="${i}"><b>${esc(it.o.code)}</b> · ${esc(it.o.nameUa||it.o.name)}<div class="hint">${esc(it.reason)}</div><div class="hint">${fmt(it.o.price)} грн · у наявності ${it.o.qty} шт</div></button>`).join('')}</div>`:''}
+      ${!P.busy?'<button class="btn small mt" data-act="repick">Підібрати інші</button>':''}
+      <p class="hint mt">Це оцінка Gemini за даними пошуку в інтернеті, а не точна статистика запитів. Наявність береться з вашого фіду${age>=2?`, який оновлено ${age} дн. тому, тож вона могла змінитися`:''}.</p></section>`;
+    return;
+  }
   if(P.type==='list'){
     box.innerHTML=`<section class="sec"><h2>Схожі товари</h2><div class="list">${P.list.map((o,i)=>`<button data-act="choose" data-i="${i}"><b>${esc(o.code)}</b> · ${esc(o.nameUa||o.name)}<div class="hint">${o.inStock?'є в наявності':'немає в наявності'} · ${fmt(o.price)} грн</div></button>`).join('')}</div></section>`;
     return;
@@ -368,6 +386,7 @@ function renderProd(){
     <div class="pills">
       <span class="pill ${o.inStock?'ok':'bad'}">${o.inStock?'В наявності'+(o.qty?': '+o.qty+' шт':''):'Немає в наявності'}</span>
       ${S.cur.viaId?'<span class="pill warn">знайдено за id, не за артикулом</span>':''}
+      ${S.posted[o.key]&&Date.now()-S.posted[o.key]<30*864e5?`<span class="pill warn">вже публікувався ${new Date(S.posted[o.key]).toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit'})}</span>`:''}
     </div>
     <div class="price">
       <div><small>Ціна у фіді (price)</small><b>${fmt(o.price)} ₴</b><small>закупка (drp): ${fmt(o.drp)} ₴</small></div>
@@ -527,17 +546,70 @@ async function publish(){
     const pub=await graph(`${s.igId}/media_publish`,{method:'POST',params:{creation_id:creation}});
     const info=await graph(pub.id,{params:{fields:'permalink'}}).catch(()=>({}));
     P.pub={done:true,link:info.permalink||''};
+    S.posted[P.rec.key]=Date.now();await kvSet('posted',S.posted);
   }catch(e){P.pub={err:e.message||String(e)}}
   P.pubBusy=false;renderPub();
 }
 
+// ---------- auto-pick ----------
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function candidates(){
+  const now=Date.now();
+  const pool=S.offers.filter(o=>o.inStock&&o.qty>=2&&o.price>0&&(o.nameUa||o.name)
+    &&o.pics.filter(isJpeg).length>=2&&!riskHits(o).length&&!(S.posted[o.key]&&now-S.posted[o.key]<30*864e5));
+  const byCat=new Map();
+  shuffle(pool).forEach(o=>{const k=o.cat||'—';if(!byCat.has(k))byCat.set(k,[]);byCat.get(k).push(o)});
+  const out=[];
+  for(const arr of byCat.values())out.push(...arr.slice(0,6));
+  return shuffle(out).slice(0,120);
+}
+async function pickProducts(){
+  const s=S.settings;
+  if(!S.offers.length){toast('Спочатку завантажте фід у налаштуваннях');setTab('settings');return}
+  if(!s.geminiKey){toast('Потрібен ключ Gemini');setTab('settings');return}
+  const me=S.cur={type:'suggest',busy:true,items:null,err:''};
+  renderResult();
+  try{
+    const pool=candidates();
+    if(pool.length<5)throw new Error('Замало товарів у наявності для підбору. Завантажте свіжий фід.');
+    const list=pool.map(o=>`${o.code} | ${(o.nameUa||o.name).slice(0,70)} | ${o.cat}${o.sub?' / '+o.sub:''} | ${fmt(o.price)} грн`).join('\n');
+    const today=new Date().toLocaleDateString('uk-UA',{day:'numeric',month:'long',year:'numeric'});
+    const sys=`Ти — аналітик попиту для українського інтернет-магазину. Сьогодні ${today}.
+З наданого списку товарів (формат: артикул | назва | категорія | ціна) обери 3, які зараз найімовірніше активно шукають в Україні. Врахуй сезон, найближчі свята, актуальні новини й тренди. Скористайся пошуком Google, щоб перевірити попит.
+Обирай тільки артикули зі списку, нічого не вигадуй. Товари мають бути з різних категорій.
+Відповідай ТІЛЬКИ JSON-масивом без додаткового тексту: [{"code":"ws123","reason":"чому актуально зараз, українською, до 15 слів"}]`;
+    const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(s.model||'gemini-3.5-flash')}:generateContent`;
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':s.geminiKey},body:JSON.stringify({
+      systemInstruction:{parts:[{text:sys}]},
+      contents:[{role:'user',parts:[{text:list}]}],
+      tools:[{google_search:{}}],
+      generationConfig:{temperature:0.7}
+    })});
+    const j=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(j.error?.message||('Gemini: HTTP '+res.status));
+    const txt=(j.candidates?.[0]?.content?.parts||[]).filter(p=>!p.thought&&p.text).map(p=>p.text).join('').replace(/```json|```/g,'');
+    const a=txt.indexOf('['),b=txt.lastIndexOf(']');
+    if(a<0||b<a)throw new Error('Gemini не повернув список. Спробуйте ще раз.');
+    const items=JSON.parse(txt.slice(a,b+1))
+      .map(x=>({o:S.byCode.get(String(x.code||'').trim().toLowerCase()),reason:String(x.reason||'')}))
+      .filter(x=>x.o&&pool.includes(x.o));
+    if(!items.length)throw new Error('Gemini запропонував артикули, яких немає у списку. Спробуйте ще раз.');
+    if(S.cur!==me)return;
+    me.items=items;
+  }catch(e){if(S.cur!==me)return;me.err=e.message||String(e)}
+  me.busy=false;renderResult();
+}
+
 // ---------- events ----------
 $('#btnFind').onclick=doFind;
+$('#btnPick').onclick=pickProducts;
 $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')doFind()});
 $('#result').addEventListener('click',e=>{
   const b=e.target.closest('[data-act]');if(!b)return;
   const P=S.cur,a=b.dataset.act;
   if(a==='choose')openProduct(P.list[+b.dataset.i]);
+  else if(a==='chooseS')openProduct(P.items[+b.dataset.i].o);
+  else if(a==='repick')pickProducts();
   else if(a==='pick'){
     const i=+b.dataset.i,at=P.sel.indexOf(i);
     if(at>=0)P.sel.splice(at,1);else if(P.sel.length>=10)return toast('Максимум 10 фото в каруселі');else P.sel.push(i);
@@ -574,6 +646,7 @@ function renderSettings(){
     fld('geminiKey','Ключ Gemini API',{type:'password',hint:'Отримати: aistudio.google.com → Get API key'})+
     fld('model','Модель')+
     fld('tags','Кількість хештегів',{type:'number'})+
+    `<label class="chk"><input type="checkbox" data-k="codeInTitle" ${S.settings.codeInTitle?'checked':''}> Артикул у дужках в кінці заголовка</label>`+
     fld('cta','Рядок після ціни',{ph:'📩 Замовлення — в Direct'})+
     fld('extra','Додаткові вказівки для стилю',{rows:1,ph:'Наприклад: звертайся на «ви», менше емодзі'});
   $('#fIg').innerHTML=
@@ -635,6 +708,7 @@ $('#btnTestIg').onclick=async()=>{
   S.settings={...DEF,...((await kvGet('settings'))||{})};
   setOffers(await offersAll());
   S.meta=(await kvGet('meta'))||null;
+  S.posted=(await kvGet('posted'))||{};
   renderSettings();renderStatus();
   if(!S.offers.length)setTab('settings');
 })();
