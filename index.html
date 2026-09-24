@@ -64,6 +64,21 @@ button,input,select,textarea{font:inherit;color:inherit}
 .price small{display:block;font-size:12px;color:var(--muted)}
 .price b{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
 .price .mine b{color:var(--brand)}
+h3.sub{font-size:14px;font-weight:700;margin-top:16px}
+.ownrow,.strip{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.strip{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}
+.own{position:relative;flex:none;width:72px;height:72px;border-radius:10px;overflow:hidden;background:#EEF1F4}
+.own img{width:100%;height:100%;object-fit:cover;display:block}
+.own button{position:absolute;top:2px;right:2px;width:24px;height:24px;border-radius:12px;border:0;background:rgba(20,23,28,.82);color:#fff;font-size:16px;line-height:24px;padding:0;cursor:pointer}
+.own button.first{top:auto;right:auto;left:2px;bottom:2px;width:auto;height:22px;padding:0 7px;border-radius:11px;font-size:11px;font-weight:600;line-height:22px}
+.own .ownst{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.65)}
+.own .ownst.bad{background:rgba(252,228,225,.9);color:var(--bad);font-weight:800}
+.pi{display:grid;grid-template-columns:64px 1fr;gap:12px;padding:14px 0;border-top:1px solid var(--line)}
+.pi:first-child{border-top:0}
+.pi .pth{width:64px;height:64px;border-radius:10px;object-fit:cover;background:#EEF1F4}
+.pi .ttl{font-weight:700;line-height:1.3}
+.pi .acts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px}
+.edit{grid-column:1/-1;border:1.5px solid var(--line);border-radius:12px;padding:12px}
 .alert{white-space:pre-line;margin-top:10px;padding:10px 12px;border-radius:10px;font-size:14px;font-weight:500}
 .alert.bad{background:var(--bad-bg);color:var(--bad)}
 .alert.warn{background:var(--warn-bg);color:var(--warn)}
@@ -97,7 +112,7 @@ label.chk input{width:22px;height:22px;flex:none;margin:1px 0 0}
 .bar i{display:block;height:100%;width:0;background:var(--brand)}
 
 nav.tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:5}
-nav.tabs .wrap{display:grid;grid-template-columns:1fr 1fr}
+nav.tabs .wrap{display:grid;grid-template-columns:repeat(3,1fr)}
 nav.tabs button{border:0;background:none;min-height:60px;font-weight:600;font-size:15px;color:var(--muted);border-top:3px solid transparent;cursor:pointer}
 nav.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--brand)}
 
@@ -129,6 +144,13 @@ nav.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--br
     <div id="result"></div>
   </div>
 
+  <div id="viewSched" hidden>
+    <section class="sec">
+      <div class="row" style="align-items:center"><h2 style="margin:0;flex:1">Відкладені публікації</h2><button class="btn small" id="btnSchedReload" style="flex:none">Оновити</button></div>
+      <div id="schedBox" class="mt"></div>
+    </section>
+  </div>
+
   <div id="viewSettings" hidden>
     <section class="sec">
       <h2>Фід товарів</h2>
@@ -152,6 +174,17 @@ nav.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--br
     </section>
 
     <section class="sec">
+      <h2>Власні фото (imgbb)</h2>
+      <div id="fImg"></div>
+    </section>
+
+    <section class="sec">
+      <h2>Відкладені публікації (Worker)</h2>
+      <div id="fWk"></div>
+      <button class="btn small mt" id="btnTestWk">Перевірити Worker</button>
+    </section>
+
+    <section class="sec">
       <h2>Instagram</h2>
       <div id="fIg"></div>
       <button class="btn small mt" id="btnTestIg">Перевірити підключення</button>
@@ -167,6 +200,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--br
 
 <nav class="tabs" aria-label="Розділи"><div class="wrap">
   <button id="tabPost" aria-selected="true">Пост</button>
+  <button id="tabSched" aria-selected="false">Відкладені</button>
   <button id="tabSettings" aria-selected="false">Налаштування</button>
 </div></nav>
 <div class="toast" id="toast" role="status"></div>
@@ -269,12 +303,12 @@ async function offersAll(){if(!DB.ok)return DB.offers;try{return await rq(DB.db.
 
 // ---------- state ----------
 const DEF={
-  markupPct:0,markupFixed:0,round:5,base:'price',showPrice:true,codeInTitle:true,useSearch:true,
+  markupPct:0,markupFixed:0,round:5,base:'price',showPrice:true,codeInTitle:true,useSearch:true,imgbbKey:'',workerUrl:'',workerKey:'',
   geminiKey:'',model:'gemini-3.5-flash',tags:8,cta:'📩 Замовлення — в Direct',extra:'',
   igId:'',igToken:'',host:'https://graph.facebook.com',ver:'v23.0',
   stop:"victoria's secret, nike, adidas, puma, gucci, louis vuitton, chanel, dior, prada, versace, rolex, apple, samsung, jbl, dyson, lego"
 };
-const S={settings:{...DEF},offers:[],byCode:new Map(),meta:null,cur:null,posted:{}};
+const S={settings:{...DEF},offers:[],byCode:new Map(),meta:null,cur:null,posted:{},sched:{items:[],loaded:false,loading:false,err:'',edit:null,del:null,now:null}};
 
 function setOffers(rows){S.offers=rows;S.byCode=new Map(rows.map(o=>[o.key,o]))}
 
@@ -324,11 +358,14 @@ function composeCaption(o,text,hashtags,s=S.settings){
 let toastT;
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2800)}
 function setTab(name){
-  $('#viewPost').hidden=name!=='post';$('#viewSettings').hidden=name!=='settings';
-  $('#tabPost').setAttribute('aria-selected',name==='post');$('#tabSettings').setAttribute('aria-selected',name==='settings');
+  $('#viewPost').hidden=name!=='post';$('#viewSched').hidden=name!=='sched';$('#viewSettings').hidden=name!=='settings';
+  $('#tabPost').setAttribute('aria-selected',name==='post');
+  $('#tabSched').setAttribute('aria-selected',name==='sched');
+  $('#tabSettings').setAttribute('aria-selected',name==='settings');
   window.scrollTo(0,0);
+  if(name==='sched')loadSched();
 }
-$('#tabPost').onclick=()=>setTab('post');$('#tabSettings').onclick=()=>setTab('settings');
+$('#tabPost').onclick=()=>setTab('post');$('#tabSched').onclick=()=>setTab('sched');$('#tabSettings').onclick=()=>setTab('settings');
 
 function renderStatus(){
   const m=S.meta,n=S.offers.length;
@@ -352,7 +389,7 @@ function openProduct(o,viaId){
   const sel=[];
   for(let i=0;i<o.pics.length&&sel.length<10;i++)if(isJpeg(o.pics[i]))sel.push(i);
   if(!sel.length)for(let i=0;i<o.pics.length&&sel.length<10;i++)sel.push(i);
-  S.cur={type:'rec',rec:o,sel,all:false,caption:'',busy:false,confirm:false,ack:false,pub:null,viaId};
+  S.cur={type:'rec',rec:o,sel,own:[],sched:null,all:false,caption:'',busy:false,confirm:false,ack:false,pub:null,viaId};
   renderResult();
   $('#result').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -396,33 +433,51 @@ function renderProd(){
     ${risk.length?`<div class="alert warn">Можливий ризик для акаунта: збіг із «${esc(risk.join(', '))}». Перевірте, що це оригінал, а не копія.</div>`:''}
     ${!o.pics.length?'<div class="alert bad">У фіді немає фото для цього товару.</div>':''}`;
 }
+function ownBlock(P){
+  const items=P.own.map((x,i)=>`<div class="own">${x.thumb?`<img src="${esc(x.thumb)}" alt="">`:''}${x.state==='uploading'?'<span class="ownst"><span class="spin"></span></span>':''}${x.state==='err'?'<span class="ownst bad">!</span>':''}<button data-act="ownDel" data-i="${i}" aria-label="Прибрати фото">×</button></div>`).join('');
+  const bad=P.own.find(x=>x.state==='err');
+  return `<h3 class="sub">Ваші фото з галереї</h3>
+    <p class="hint">Необов’язково. Вони підуть у пості першими.</p>
+    ${items?`<div class="ownrow">${items}</div>`:''}
+    ${bad?`<div class="alert bad">${esc(bad.err)}</div>`:''}
+    <label class="btn small mt" style="cursor:pointer">Додати з галереї<input type="file" id="ownFile" accept="image/*" multiple hidden></label>`;
+}
 function renderPhotos(){
   const P=S.cur,o=P.rec;
-  if(!o.pics.length){$('#sPhotos').innerHTML='<h2>Фото</h2><p class="empty">Немає фото.</p>';return}
-  const shown=P.all?o.pics.length:Math.min(o.pics.length,16);
-  const nonJ=P.sel.filter(i=>!isJpeg(o.pics[i])).length;
-  let h='<h2>Фото для посту</h2><div class="grid">';
-  for(let i=0;i<shown;i++){
-    const pos=P.sel.indexOf(i);
-    h+=`<button class="ph ${pos>=0?'on':''} ${isJpeg(o.pics[i])?'':'nojpg'}" data-act="pick" data-i="${i}" aria-pressed="${pos>=0}" aria-label="Фото ${i+1}"><img src="${esc(o.pics[i])}" loading="lazy" referrerpolicy="no-referrer" alt="">${pos>=0?`<i>${pos+1}</i>`:''}</button>`;
+  let h='';
+  if(!o.pics.length){h='<h2>Фото</h2><p class="empty">У фіді немає фото. Додайте власні нижче.</p>'}
+  else{
+    const shown=P.all?o.pics.length:Math.min(o.pics.length,16);
+    const nonJ=P.sel.filter(i=>!isJpeg(o.pics[i])).length;
+    const max=10-P.own.length;
+    h='<h2>Фото для посту</h2><div class="grid">';
+    for(let i=0;i<shown;i++){
+      const pos=P.sel.indexOf(i);
+      h+=`<button class="ph ${pos>=0?'on':''} ${isJpeg(o.pics[i])?'':'nojpg'}" data-act="pick" data-i="${i}" aria-pressed="${pos>=0}" aria-label="Фото ${i+1}"><img src="${esc(o.pics[i])}" loading="lazy" referrerpolicy="no-referrer" alt="">${pos>=0?`<i>${pos+1}</i>`:''}</button>`;
+    }
+    h+='</div>';
+    if(o.pics.length>shown)h+=`<button class="btn small mt" data-act="allpics">Показати всі (${o.pics.length})</button>`;
+    h+=`<p class="hint mt">Обрано ${P.sel.length} з ${max}.${P.own.length?' Ваші фото підуть першими.':' Перше фото стане обкладинкою.'} Номер на фото показує порядок.</p>`;
+    if(nonJ)h+=`<div class="alert warn">${nonJ} фото не у форматі JPEG. Instagram API приймає тільки JPEG, такі фото краще прибрати.</div>`;
   }
-  h+='</div>';
-  if(o.pics.length>shown)h+=`<button class="btn small mt" data-act="allpics">Показати всі (${o.pics.length})</button>`;
-  h+=`<p class="hint mt">Обрано ${P.sel.length} з 10. Перше фото стане обкладинкою. Номер на фото показує порядок.</p>`;
-  if(nonJ)h+=`<div class="alert warn">${nonJ} фото не у форматі JPEG. Instagram API приймає тільки JPEG, такі фото краще прибрати.</div>`;
+  h+=ownBlock(P);
   $('#sPhotos').innerHTML=h;
 }
 function renderCap(){
   const P=S.cur;
   const hasKey=!!S.settings.geminiKey;
+  const notes=`<label class="f">Ваші відомості про товар (необов’язково)<textarea id="notes" style="min-height:80px" placeholder="Наприклад: гарантія 1 рік, є в чорному й синьому кольорах">${esc(P.notes||'')}</textarea><small>Gemini використає їх як факти й поставить на перше місце.</small></label>`;
   let h='<h2>Підпис українською</h2>';
   if(!P.caption&&!P.busy){
-    h+=hasKey?'<button class="btn primary block" data-act="gen">Написати підпис</button>':'<p class="empty">Щоб писати підписи, додайте ключ Gemini в налаштуваннях.</p><button class="btn block mt" data-act="toSettings">Відкрити налаштування</button>';
+    h+=notes;
+    h+=hasKey?'<button class="btn primary block mt" data-act="gen">Написати підпис (Gemini)</button>':'<p class="hint mt">Щоб Gemini писав підписи, додайте його ключ в налаштуваннях.</p>';
+    h+='<button class="btn block mt" data-act="own">Написати свій опис</button>';
   }else if(P.busy){
     h+='<button class="btn block" disabled><span class="spin"></span> Gemini пише…</button>';
   }else{
     h+=`<textarea id="cap" aria-label="Підпис до посту">${esc(P.caption)}</textarea><div class="counter" id="capCount"></div>
-    <div class="row mt"><button class="btn small" data-act="copy">Копіювати</button><button class="btn small" data-act="gen">Написати заново</button></div>`;
+    <div class="row mt"><button class="btn small" data-act="copy">Копіювати</button>${hasKey?'<button class="btn small" data-act="gen">Gemini заново</button>':''}</div>
+    <details class="mt"><summary class="hint">Відомості для Gemini</summary>${notes}</details>`;
   }
   if(P.err)h+=`<div class="alert bad">${esc(P.err)}</div>`;
   $('#sCap').innerHTML=h;
@@ -434,36 +489,64 @@ function updateCount(){
   c.textContent=`${n} / 2200`;c.classList.toggle('over',n>2200);
   renderPub();
 }
+function nowLocalInput(d=new Date()){return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,16)}
+function workerOn(){const s=S.settings;return !!(s.workerUrl&&s.workerKey)}
+function photoUrls(P){return [...P.own.filter(x=>x.state==='ok').map(x=>x.url),...P.sel.map(i=>P.rec.pics[i])].slice(0,10)}
+function fmtDT(ms){return new Date(ms).toLocaleString('uk-UA',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
 function renderPub(){
   const P=S.cur,el=$('#sPub');if(!el)return;
-  const o=P.rec,s=S.settings;
+  const o=P.rec,s=S.settings,Z=P.sched||{};
   const warns=[];
   if(!o.inStock)warns.push('товару немає в наявності');
   if(riskHits(o).length)warns.push('ризиковий бренд');
   const n=[...P.caption].length;
+  const nPh=P.own.length+P.sel.length;
+  const ownBusy=P.own.some(x=>x.state==='uploading'),ownBad=P.own.some(x=>x.state==='err');
   const noCreds=!s.igId||!s.igToken;
-  const ready=P.caption&&n<=2200&&P.sel.length>0&&!noCreds&&!P.busy&&!P.pubBusy;
+  const base=P.caption&&n<=2200&&nPh>0&&!ownBusy&&!ownBad&&!P.busy&&!P.pubBusy&&!Z.busy;
+  const readyNow=base&&!noCreds,canSched=base&&workerOn();
+  const ackBox=id=>warns.length?`<label class="chk"><input type="checkbox" id="${id}" ${P.ack?'checked':''}> Розумію, що ${esc(warns.join(' і '))}, і все одно продовжую</label>`:'';
   let h='<h2>Публікація</h2>';
   if(P.pub&&P.pub.done){
     h+=`<div class="done">Опубліковано.${P.pub.link?` <a href="${esc(P.pub.link)}" target="_blank" rel="noopener">Відкрити пост</a>`:''}</div>`;
+  }else if(Z.done){
+    h+=`<div class="done">Заплановано на ${esc(fmtDT(Z.done.at))}. Worker опублікує пост сам.</div><button class="btn block mt" data-act="openList">Відкрити відкладені</button>`;
   }else{
-    if(noCreds)h+='<p class="hint">Додайте ID акаунта й токен Instagram в налаштуваннях.</p>';
-    else if(!P.caption)h+='<p class="hint">Спочатку напишіть підпис.</p>';
-    if(P.confirm&&ready){
-      h+=`<p class="hint">Буде опубліковано ${P.sel.length>1?'карусель із '+P.sel.length+' фото':'1 фото'} в акаунті. Це побачать підписники.</p>`;
-      if(warns.length)h+=`<label class="chk"><input type="checkbox" id="ack" ${P.ack?'checked':''}> Розумію, що ${esc(warns.join(' і '))}, і все одно публікую</label>`;
+    if(!P.caption)h+='<p class="hint">Спочатку напишіть підпис.</p>';
+    else if(ownBusy)h+='<p class="hint">Зачекайте, ваші фото ще завантажуються.</p>';
+    else if(ownBad)h+='<p class="hint">Приберіть фото, які не завантажилися.</p>';
+    if(P.confirm&&readyNow){
+      h+=`<p class="hint">Буде опубліковано ${nPh>1?'карусель із '+Math.min(nPh,10)+' фото':'1 фото'} в акаунті. Це побачать підписники.</p>${ackBox('ack')}`;
       h+=`<button class="btn primary block mt" data-act="pubgo" ${warns.length&&!P.ack?'disabled':''}>Так, опублікувати</button><button class="btn block mt" data-act="pubcancel">Скасувати</button>`;
+    }else if(Z.open&&canSched){
+      h+=`<label class="f">Дата й час публікації<input type="datetime-local" id="schedAt" value="${esc(Z.value)}" min="${nowLocalInput()}"></label>
+      <p class="hint">Час за вашим поясом (${esc(Intl.DateTimeFormat().resolvedOptions().timeZone)}). Публікує Worker, тож телефон і сторінка можуть бути вимкнені.</p>${ackBox('schedAck')}
+      <button class="btn primary block mt" data-act="schedgo" ${(warns.length&&!P.ack)||Z.busy?'disabled':''}>${Z.busy?'<span class="spin"></span> Планую…':'Запланувати'}</button>
+      <button class="btn block mt" data-act="schedcancel">Скасувати</button>`;
     }else if(P.pubBusy){
       h+=`<button class="btn block" disabled><span class="spin"></span> ${esc(P.pubMsg||'Публікую…')}</button>`;
     }else{
-      h+=`<button class="btn primary block" data-act="pubstart" ${ready?'':'disabled'}>Опублікувати в Instagram</button>`;
+      if(noCreds)h+='<p class="hint">Щоб публікувати одразу, додайте ID акаунта й токен Instagram в налаштуваннях.</p>';
+      h+=`<button class="btn primary block" data-act="pubstart" ${readyNow?'':'disabled'}>Опублікувати зараз</button>
+      <button class="btn block mt" data-act="schedopen" ${canSched?'':'disabled'}>Відкласти публікацію</button>`;
+      if(!workerOn())h+='<p class="hint mt">Щоб відкладати публікації, підключіть Worker в налаштуваннях.</p>';
     }
     if(P.pub&&P.pub.err)h+=`<div class="alert bad">${esc(P.pub.err)}</div>`;
+    if(Z.err)h+=`<div class="alert bad">${esc(Z.err)}</div>`;
   }
   el.innerHTML=h;
 }
 
 // ---------- Gemini ----------
+async function gfetch(url,init){
+  for(let i=0;;i++){
+    const res=await fetch(url,init);
+    const j=await res.json().catch(()=>({}));
+    const busy=res.status===503||/high demand|overloaded|UNAVAILABLE/i.test(j.error?.message||'');
+    if(busy&&i<2){await new Promise(r=>setTimeout(r,2500*(i+1)));continue}
+    return {res,j};
+  }
+}
 async function genCaption(){
   const P=S.cur,o=P.rec,s=S.settings;
   P.busy=true;P.err='';renderCap();renderPub();
@@ -471,6 +554,7 @@ async function genCaption(){
     const sys=`Ти — копірайтер інтернет-магазину. Пишеш підписи до постів в Instagram українською мовою.
 Правила:
 - Використовуй лише факти з наданих даних. Нічого не вигадуй: розміри, потужність, матеріали, гарантію, сертифікати.
+- Поле власні_відомості містить факти від власника магазину: вони мають пріоритет над рештою даних, використай їх обов’язково.
 - Не обіцяй лікувальних чи медичних ефектів, не використовуй слова «лікує», «зцілює» тощо.
 - Не вказуй ціну, контакти й посилання: їх додасть застосунок.
 - Структура: 1) заголовок із 1 емодзі; 2) 1–2 речення про те, кому й навіщо потрібен товар; 3) 3–5 рядків із ключовими характеристиками, кожен із емодзі на початку; 4) за потреби комплектація одним рядком.
@@ -481,15 +565,14 @@ async function genCaption(){
     const data={
       назва:o.nameUa||o.name,категорія:[o.cat,o.sub].filter(Boolean).join(' / '),
       бренд:o.brand&&o.brand!=='Без бренда'?o.brand:'',країна:o.country,
-      характеристики:o.params.map(([k,v])=>k+': '+v),опис:o.desc.slice(0,1800)
+      характеристики:o.params.map(([k,v])=>k+': '+v),опис:o.desc.slice(0,1800),власні_відомості:(P.notes||'').trim()
     };
     const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(s.model||'gemini-3.5-flash')}:generateContent`;
-    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':s.geminiKey},body:JSON.stringify({
+    const {res,j}=await gfetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':s.geminiKey},body:JSON.stringify({
       systemInstruction:{parts:[{text:sys}]},
       contents:[{role:'user',parts:[{text:JSON.stringify(data)}]}],
       generationConfig:{responseMimeType:'application/json',temperature:0.8}
     })});
-    const j=await res.json().catch(()=>({}));
     if(!res.ok)throw new Error(j.error?.message||('Gemini: HTTP '+res.status));
     const parts=(j.candidates?.[0]?.content?.parts||[]).filter(p=>!p.thought&&p.text).map(p=>p.text);
     if(!parts.length)throw new Error('Gemini не повернув текст. Спробуйте ще раз.');
@@ -522,7 +605,8 @@ async function waitReady(id){
 }
 async function publish(){
   const P=S.cur,s=S.settings;
-  const urls=P.sel.map(i=>P.rec.pics[i]),cap=$('#cap').value;
+  const urls=photoUrls(P);
+  const cap=$('#cap').value;
   P.pubBusy=true;P.confirm=false;P.pub=null;
   const say=m=>{P.pubMsg=m;renderPub()};
   try{
@@ -550,6 +634,175 @@ async function publish(){
   }catch(e){P.pub={err:e.message||String(e)}}
   P.pubBusy=false;renderPub();
 }
+
+// ---------- own photos (gallery) ----------
+function loadImg(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>rej(new Error('Не вдалося прочитати зображення'));im.src=src})}
+// Будь-який формат -> JPEG, співвідношення сторін у межах, які приймає Instagram (від 4:5 до 1.91:1).
+async function toJpegB64(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const im=await loadImg(url);
+    const sc=Math.min(1,1600/Math.max(im.naturalWidth,im.naturalHeight));
+    const w=Math.round(im.naturalWidth*sc),h=Math.round(im.naturalHeight*sc);
+    let cw=w,ch=h;const ratio=w/h;
+    if(ratio<0.8)cw=Math.round(h*0.8);else if(ratio>1.91)ch=Math.round(w/1.91);
+    const cv=document.createElement('canvas');cv.width=cw;cv.height=ch;
+    const ctx=cv.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,cw,ch);
+    ctx.drawImage(im,(cw-w)/2,(ch-h)/2,w,h);
+    const th=document.createElement('canvas');th.width=160;th.height=Math.round(160*ch/cw);
+    th.getContext('2d').drawImage(cv,0,0,th.width,th.height);
+    return {b64:cv.toDataURL('image/jpeg',0.9).split(',')[1],thumb:th.toDataURL('image/jpeg',0.7)};
+  }finally{URL.revokeObjectURL(url)}
+}
+async function uploadImgbb(b64,name){
+  const body=new URLSearchParams({image:b64,name});
+  const res=await fetch('https://api.imgbb.com/1/upload?key='+encodeURIComponent(S.settings.imgbbKey),{method:'POST',body});
+  const j=await res.json().catch(()=>({}));
+  const u=j.data&&(j.data.url||j.data.display_url);
+  if(!res.ok||!u)throw new Error((j.error&&j.error.message)||('imgbb: HTTP '+res.status));
+  return u;
+}
+async function addOwn(files){
+  const P=S.cur;
+  if(!S.settings.imgbbKey){toast('Додайте ключ imgbb в налаштуваннях');setTab('settings');return}
+  for(const f of files){
+    if(P.own.length>=10){toast('Максимум 10 фото');break}
+    const item={state:'uploading',thumb:'',url:'',err:''};
+    P.own.push(item);
+    while(P.own.length+P.sel.length>10&&P.sel.length)P.sel.pop();
+    if(S.cur===P){renderPhotos();renderPub()}
+    try{
+      const {b64,thumb}=await toJpegB64(f);
+      item.thumb=thumb;if(S.cur===P)renderPhotos();
+      item.url=await uploadImgbb(b64,'own-'+P.rec.code);
+      item.state='ok';
+    }catch(e){item.state='err';item.err='Не вдалося завантажити фото: '+(e.message||e)}
+    if(S.cur===P){renderPhotos();renderPub()}
+  }
+}
+
+// ---------- Worker (відкладені публікації) ----------
+async function wk(path,{method='GET',body}={}){
+  const s=S.settings;
+  if(!s.workerUrl||!s.workerKey)throw new Error('Worker не налаштований');
+  const res=await fetch(s.workerUrl.replace(/\/+$/,'')+path,{method,headers:{'X-Admin-Key':s.workerKey,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
+  const j=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(j.error||('Worker: HTTP '+res.status));
+  return j;
+}
+async function schedGo(){
+  const P=S.cur,Z=P.sched;
+  const v=($('#schedAt')||{}).value||Z.value,at=new Date(v).getTime();
+  if(!v||!isFinite(at)){Z.err='Вкажіть дату й час.';renderPub();return}
+  if(at<Date.now()+2*60e3){Z.err='Час має бути щонайменше через 2 хвилини від зараз.';renderPub();return}
+  if(P.sel.some(i=>!isJpeg(P.rec.pics[i]))){Z.err='Є фото не у форматі JPEG. Приберіть їх, інакше Instagram відхилить публікацію.';renderPub();return}
+  const urls=photoUrls(P);
+  Z.busy=true;Z.err='';Z.value=v;renderPub();
+  try{
+    await wk('/posts',{method:'POST',body:{at,caption:$('#cap').value,images:urls,code:P.rec.code,title:P.rec.nameUa||P.rec.name,thumb:urls[0]}});
+    Z.done={at};Z.open=false;
+    S.posted[P.rec.key]=Date.now();await kvSet('posted',S.posted);
+    S.sched.loaded=false;
+  }catch(e){Z.err=e.message||String(e)}
+  Z.busy=false;
+  if(S.cur===P)renderPub();
+}
+
+// ---------- список відкладених ----------
+const STATUS={scheduled:['Заплановано',''],publishing:['Публікується…','warn'],published:['Опубліковано','ok'],failed:['Помилка','bad']};
+async function loadSched(){
+  const Q=S.sched;
+  if(!workerOn()){renderSched();return}
+  Q.loading=true;Q.err='';renderSched();
+  try{Q.items=(await wk('/posts')).posts;Q.loaded=true}catch(e){Q.err=e.message||String(e)}
+  Q.loading=false;renderSched();
+}
+function itemHtml(p){
+  const Q=S.sched,st=STATUS[p.status]||[p.status,''];
+  const E=Q.edit&&Q.edit.id===p.id?Q.edit:null;
+  let a='';
+  if(p.status==='scheduled'||p.status==='failed'){
+    a+=`<button class="btn small" data-sact="edit" data-id="${p.id}">Редагувати</button>`;
+    if(p.status==='scheduled')a+=`<button class="btn small" data-sact="now" data-id="${p.id}">${Q.now===p.id?'Точно зараз?':'Опублікувати зараз'}</button>`;
+    a+=`<button class="btn small" data-sact="del" data-id="${p.id}">${Q.del===p.id?'Точно видалити?':'Видалити'}</button>`;
+  }else if(p.status==='published'){
+    if(p.permalink)a+=`<a class="btn small" href="${esc(p.permalink)}" target="_blank" rel="noopener">Відкрити пост</a>`;
+    a+=`<button class="btn small" data-sact="del" data-id="${p.id}">${Q.del===p.id?'Точно прибрати?':'Прибрати зі списку'}</button>`;
+  }
+  let edit='';
+  if(E){
+    edit=`<div class="edit">
+      <label class="f">Дата й час<input type="datetime-local" id="edAt" value="${esc(E.at)}" min="${nowLocalInput()}"></label>
+      <label class="f">Підпис<textarea id="edCap" style="min-height:220px">${esc(E.caption)}</textarea></label>
+      <div class="counter" id="edCount">${[...E.caption].length} / 2200</div>
+      <h3 class="sub">Фото (${E.images.length})</h3>
+      <div class="strip">${E.images.map((u,i)=>`<div class="own"><img src="${esc(u)}" alt="" referrerpolicy="no-referrer">${i>0?`<button class="first" data-sact="imgfirst" data-i="${i}">▲ перше</button>`:''}<button data-sact="imgdel" data-i="${i}" aria-label="Прибрати фото">×</button></div>`).join('')}</div>
+      ${E.err?`<div class="alert bad">${esc(E.err)}</div>`:''}
+      <div class="row mt"><button class="btn primary small" data-sact="editsave" ${E.busy?'disabled':''}>${E.busy?'Зберігаю…':'Зберегти'}</button><button class="btn small" data-sact="editcancel">Скасувати</button></div>
+    </div>`;
+  }
+  return `<article class="pi">
+    <img class="pth" src="${esc(p.thumb||p.images[0]||'')}" alt="" referrerpolicy="no-referrer">
+    <div><div class="ttl">${esc(p.title||'Пост')}${p.code?` <span class="code">(${esc(p.code)})</span>`:''}</div>
+      <div class="meta">${esc(fmtDT(p.status==='published'&&p.published?p.published:p.at))} · ${p.images.length} фото</div>
+      <div class="pills"><span class="pill ${st[1]}">${st[0]}</span></div>
+      ${p.error&&p.status!=='published'?`<div class="alert ${p.status==='failed'?'bad':'warn'}">${esc(p.error)}</div>`:''}
+    </div>
+    ${edit||`<div class="acts">${a}</div>`}
+  </article>`;
+}
+function renderSched(){
+  const box=$('#schedBox'),Q=S.sched;if(!box)return;
+  if(!workerOn()){box.innerHTML='<p class="empty">Worker не підключений. Додайте його адресу й ключ доступу в налаштуваннях.</p><button class="btn block mt" data-sact="toSettings">Відкрити налаштування</button>';return}
+  let h='';
+  if(Q.err)h+=`<div class="alert bad">${esc(Q.err)}</div>`;
+  if(Q.loading&&!Q.loaded)h+='<p class="hint"><span class="spin"></span> Завантажую…</p>';
+  else if(Q.loaded){
+    const active=Q.items.filter(p=>p.status!=='published').sort((a,b)=>a.at-b.at);
+    const done=Q.items.filter(p=>p.status==='published').sort((a,b)=>(b.published||b.at)-(a.published||a.at));
+    h+='<h3 class="sub" style="margin-top:0">Заплановані</h3>';
+    h+=active.length?active.map(itemHtml).join(''):'<p class="empty">Поки що нічого не заплановано.</p>';
+    if(done.length)h+='<h3 class="sub">Опубліковані</h3>'+done.map(itemHtml).join('');
+  }
+  box.innerHTML=h;
+}
+$('#btnSchedReload').onclick=()=>{if(!S.sched.edit)loadSched();else toast('Спочатку збережіть або скасуйте редагування')};
+$('#schedBox').addEventListener('input',e=>{
+  const E=S.sched.edit;if(!E)return;
+  if(e.target.id==='edAt')E.at=e.target.value;
+  else if(e.target.id==='edCap'){E.caption=e.target.value;const c=$('#edCount');c.textContent=`${[...E.caption].length} / 2200`;c.classList.toggle('over',[...E.caption].length>2200)}
+});
+$('#schedBox').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-sact]');if(!b)return;
+  const Q=S.sched,a=b.dataset.sact,id=b.dataset.id;
+  const post=Q.items.find(p=>p.id===id);
+  const keepDel=a==='del'?Q.del:null,keepNow=a==='now'?Q.now:null;
+  Q.del=null;Q.now=null;
+  try{
+    if(a==='toSettings')return setTab('settings');
+    if(a==='edit'){Q.edit={id,at:nowLocalInput(new Date(Math.max(post.at,Date.now()+3*60e3))),caption:post.caption,images:[...post.images],err:'',busy:false};renderSched()}
+    else if(a==='editcancel'){Q.edit=null;renderSched()}
+    else if(a==='imgdel'){if(Q.edit.images.length<2){Q.edit.err='Потрібне хоча б одне фото.';}else{Q.edit.images.splice(+b.dataset.i,1);Q.edit.err=''}renderSched()}
+    else if(a==='imgfirst'){const [u]=Q.edit.images.splice(+b.dataset.i,1);Q.edit.images.unshift(u);renderSched()}
+    else if(a==='editsave'){
+      const E=Q.edit,at=new Date(E.at).getTime(),cap=E.caption.trim();
+      if(!isFinite(at)||at<Date.now()+60e3){E.err='Вкажіть час хоча б через хвилину від зараз.';return renderSched()}
+      if(!cap||[...cap].length>2200){E.err='Підпис має бути від 1 до 2200 символів.';return renderSched()}
+      E.busy=true;E.err='';renderSched();
+      try{await wk('/posts/'+E.id,{method:'PUT',body:{at,caption:cap,images:E.images,thumb:E.images[0]}});Q.edit=null;toast('Збережено');await loadSched()}
+      catch(err){E.busy=false;E.err=err.message||String(err);renderSched()}
+    }
+    else if(a==='del'){
+      if(keepDel!==id){Q.del=id;renderSched();return}
+      await wk('/posts/'+id,{method:'DELETE'});toast('Видалено');await loadSched();
+    }
+    else if(a==='now'){
+      if(keepNow!==id){Q.now=id;renderSched();return}
+      await wk('/posts/'+id,{method:'PUT',body:{at:Date.now()}});toast('Worker опублікує пост протягом хвилини');await loadSched();
+    }
+  }catch(err){Q.err=err.message||String(err);renderSched()}
+});
+setInterval(()=>{if(!$('#viewSched').hidden&&!S.sched.edit&&!S.sched.loading&&workerOn())loadSched()},30000);
 
 // ---------- auto-pick ----------
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
@@ -580,13 +833,12 @@ async function pickProducts(){
 Обирай тільки артикули зі списку, нічого не вигадуй. Товари мають бути з різних категорій.
 Відповідай ТІЛЬКИ JSON-масивом без додаткового тексту: [{"code":"ws123","reason":"чому актуально зараз, українською, до 15 слів"}]`;
     const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(s.model||'gemini-3.5-flash')}:generateContent`;
-    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':s.geminiKey},body:JSON.stringify({
+    const {res,j}=await gfetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':s.geminiKey},body:JSON.stringify({
       systemInstruction:{parts:[{text:sys}]},
       contents:[{role:'user',parts:[{text:list}]}],
       ...(useSearch?{tools:[{google_search:{}}]}:{}),
       generationConfig:{temperature:0.7}
     })});
-    const j=await res.json().catch(()=>({}));
     if(!res.ok)throw new Error(j.error?.message||('Gemini: HTTP '+res.status));
     const txt=(j.candidates?.[0]?.content?.parts||[]).filter(p=>!p.thought&&p.text).map(p=>p.text).join('').replace(/```json|```/g,'');
     const a=txt.indexOf('['),b=txt.lastIndexOf(']');
@@ -616,24 +868,42 @@ $('#result').addEventListener('click',e=>{
   if(a==='choose')openProduct(P.list[+b.dataset.i]);
   else if(a==='chooseS')openProduct(P.items[+b.dataset.i].o);
   else if(a==='repick')pickProducts();
+  else if(a==='ownDel'){P.own.splice(+b.dataset.i,1);renderPhotos();renderPub()}
+  else if(a==='openList')setTab('sched');
+  else if(a==='schedopen'){const d=new Date();d.setDate(d.getDate()+1);d.setHours(10,0,0,0);P.sched={open:true,value:nowLocalInput(d),busy:false,err:''};P.confirm=false;P.ack=false;renderPub()}
+  else if(a==='schedcancel'){P.sched=null;renderPub()}
+  else if(a==='schedgo')schedGo();
   else if(a==='pick'){
     const i=+b.dataset.i,at=P.sel.indexOf(i);
-    if(at>=0)P.sel.splice(at,1);else if(P.sel.length>=10)return toast('Максимум 10 фото в каруселі');else P.sel.push(i);
+    const max=10-P.own.length;
+    if(at>=0)P.sel.splice(at,1);else if(P.sel.length>=max)return toast('Максимум '+max+' фото в каруселі');else P.sel.push(i);
     renderPhotos();renderPub();
   }
   else if(a==='allpics'){P.all=true;renderPhotos()}
   else if(a==='gen')genCaption();
+  else if(a==='own'){
+    P.caption=composeCaption(P.rec,P.rec.nameUa||P.rec.name,[]);P.err='';renderCap();renderPub();
+    const t=$('#cap');if(t){t.focus();const i=t.value.indexOf('\n');t.setSelectionRange(i<0?t.value.length:i,i<0?t.value.length:i)}
+  }
   else if(a==='toSettings')setTab('settings');
   else if(a==='copy'){
     const t=$('#cap').value;
     (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).catch(()=>{const c=$('#cap');c.select();document.execCommand('copy')}).then(()=>toast('Підпис скопійовано'));
   }
-  else if(a==='pubstart'){P.confirm=true;P.ack=false;renderPub()}
+  else if(a==='pubstart'){P.confirm=true;P.ack=false;P.sched=null;renderPub()}
   else if(a==='pubcancel'){P.confirm=false;renderPub()}
   else if(a==='pubgo')publish();
 });
-$('#result').addEventListener('input',e=>{if(e.target.id==='cap'){S.cur.caption=e.target.value;updateCount()}});
-$('#result').addEventListener('change',e=>{if(e.target.id==='ack'){S.cur.ack=e.target.checked;renderPub()}});
+$('#result').addEventListener('input',e=>{
+  if(e.target.id==='cap'){S.cur.caption=e.target.value;updateCount()}
+  else if(e.target.id==='notes')S.cur.notes=e.target.value;
+});
+$('#result').addEventListener('change',e=>{
+  const id=e.target.id;
+  if(id==='ack'||id==='schedAck'){S.cur.ack=e.target.checked;renderPub()}
+  else if(id==='schedAt'){S.cur.sched.value=e.target.value}
+  else if(id==='ownFile'){const fs=[...e.target.files];e.target.value='';if(fs.length)addOwn(fs)}
+});
 
 // ---------- settings ----------
 function fld(k,label,{type='text',hint='',ph='',opts=null,rows=0}={}){
@@ -656,6 +926,10 @@ function renderSettings(){
     `<label class="chk"><input type="checkbox" data-k="useSearch" ${S.settings.useSearch?'checked':''}> Пошук Google при автопідборі<span class="hint" style="display:block">Потребує платного тарифу Gemini API (є безкоштовний місячний ліміт). Без нього підбір іде за сезоном і знаннями моделі.</span></label>`+
     fld('cta','Рядок після ціни',{ph:'📩 Замовлення — в Direct'})+
     fld('extra','Додаткові вказівки для стилю',{rows:1,ph:'Наприклад: звертайся на «ви», менше емодзі'});
+  $('#fImg').innerHTML=fld('imgbbKey','Ключ imgbb',{type:'password',hint:'Безкоштовний ключ: api.imgbb.com. Потрібен, щоб Instagram міг завантажити ваші фото з галереї за посиланням.'});
+  $('#fWk').innerHTML=
+    fld('workerUrl','Адреса Worker',{ph:'https://ig-scheduler.ваш-акаунт.workers.dev',hint:'Як його створити, описано на початку файлу worker.js.'})+
+    fld('workerKey','Ключ доступу',{type:'password',hint:'Той самий, що ADMIN_KEY у Worker.'});
   $('#fIg').innerHTML=
     fld('igId','ID Instagram-акаунта',{hint:'Instagram Business/Creator, прив’язаний до Facebook-сторінки'})+
     fld('igToken','Токен доступу',{type:'password',hint:'Потрібен дозвіл на публікацію контенту. Токен доведеться періодично поновлювати.'})+
@@ -668,6 +942,7 @@ $('#viewSettings').addEventListener('change',async e=>{
   if(['markupPct','markupFixed','tags'].includes(k))v=parseFloat(v)||0;
   if(k==='round')v=parseInt(v,10)||0;
   S.settings[k]=v;
+  if(k==='workerUrl'||k==='workerKey'){S.sched.loaded=false;S.sched.items=[]}
   await kvSet('settings',S.settings);
   toast('Збережено');
   if(S.cur&&S.cur.type==='rec'){renderProd();renderPub();renderCap()}
@@ -694,6 +969,10 @@ $('#feedFile').addEventListener('change',async e=>{
   }catch(err){prog.textContent='Помилка: '+(err.message||err)}
   e.target.value='';
 });
+$('#btnTestWk').onclick=async()=>{
+  try{const j=await wk('/health');toast(j.instagramConfigured?'Worker працює':'Worker працює, але в ньому не задано IG_TOKEN або IG_ID')}
+  catch(e){toast('Помилка: '+(e.message||e))}
+};
 $('#btnTestGemini').onclick=async()=>{
   const s=S.settings;if(!s.geminiKey)return toast('Спочатку введіть ключ');
   try{
