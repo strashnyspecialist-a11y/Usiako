@@ -155,7 +155,9 @@ nav.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--br
     <section class="sec">
       <h2>Фід товарів</h2>
       <p class="hint" id="feedInfo"></p>
-      <label class="btn block mt" style="cursor:pointer">Вибрати файл фіду (.xml)
+      <div id="fFeedUrl"></div>
+      <button class="btn primary block mt" id="btnFeedUpdate">Оновити фід зараз</button>
+      <label class="btn small mt" style="cursor:pointer">Або вибрати файл (.xml)
         <input type="file" id="feedFile" accept=".xml,text/xml,application/xml" hidden>
       </label>
       <div class="bar" id="feedBar" hidden><i></i></div>
@@ -256,8 +258,9 @@ function parseOffer(x){
     url:txt('url'), country:txt('country_of_origin'), params
   };
 }
-async function parseFeed(file,onOffer,onProgress){
-  const reader=file.stream().getReader(), dec=new TextDecoder('utf-8');
+// src = {reader, size}: reader — ReadableStreamDefaultReader (з файлу або з fetch), size — розмір у байтах (0, якщо невідомий)
+async function parseFeed(src,onOffer,onProgress){
+  const reader=src.reader, size=src.size||0, dec=new TextDecoder('utf-8');
   let buf='',bytes=0,n=0;
   for(;;){
     const {value,done}=await reader.read();
@@ -273,7 +276,7 @@ async function parseFeed(file,onOffer,onProgress){
       if(o.code){await onOffer(o);n++}
     }
     buf=buf.slice(p);
-    if(onProgress)onProgress(bytes/(file.size||1),n);
+    if(onProgress)onProgress(size?Math.min(1,bytes/size):0,n);
     if(done)break;
   }
   return n;
@@ -303,6 +306,7 @@ async function offersAll(){if(!DB.ok)return DB.offers;try{return await rq(DB.db.
 
 // ---------- state ----------
 const DEF={
+  feedUrl:'https://www.websklad.biz.ua/wp-content/uploads/current-Universalnaya.xml',
   markupPct:0,markupFixed:0,round:5,base:'price',showPrice:true,codeInTitle:true,useSearch:true,imgbbKey:'',workerUrl:'',workerKey:'',
   geminiKey:'',model:'gemini-3.5-flash',tags:8,cta:'📩 Замовлення — в Direct',extra:'',
   igId:'',igToken:'',host:'https://graph.facebook.com',ver:'v23.0',
@@ -369,11 +373,11 @@ $('#tabPost').onclick=()=>setTab('post');$('#tabSched').onclick=()=>setTab('sche
 
 function renderStatus(){
   const m=S.meta,n=S.offers.length;
-  if(!n){$('#feedStatus').innerHTML='Фід не завантажено. Додайте файл у налаштуваннях.';$('#feedInfo').textContent='Файл ще не завантажено.';return}
+  if(!n){$('#feedStatus').innerHTML='Фід не завантажено. Додайте посилання або файл у налаштуваннях.';$('#feedInfo').textContent='Фід ще не завантажено.';return}
   const d=m?.at?new Date(m.at).toLocaleString('uk-UA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
   const inS=S.offers.filter(o=>o.inStock).length;
   $('#feedStatus').innerHTML=`<b>${fmt(n)}</b> товарів, у наявності <b>${fmt(inS)}</b>${d?' · оновлено '+d:''}`;
-  $('#feedInfo').textContent=`Завантажено ${fmt(n)} товарів${m?.name?' з файлу '+m.name:''}${d?', '+d:''}.${DB.ok?'':' Сховище недоступне: після закриття сторінки файл доведеться завантажити знову.'}`;
+  $('#feedInfo').textContent=`Завантажено ${fmt(n)} товарів${m?.name?' з «'+m.name+'»':''}${d?', '+d:''}.${DB.ok?'':' Сховище недоступне: після закриття сторінки фід доведеться завантажити знову.'}`;
 }
 
 // ---------- search & product view ----------
@@ -913,6 +917,7 @@ function fld(k,label,{type='text',hint='',ph='',opts=null,rows=0}={}){
   return `<label class="f">${label}<input data-k="${k}" type="${type}" value="${esc(v)}" placeholder="${esc(ph)}" autocomplete="off" ${type==='number'?'inputmode="decimal" step="any"':''}>${hint?`<small>${hint}</small>`:''}</label>`;
 }
 function renderSettings(){
+  $('#fFeedUrl').innerHTML=fld('feedUrl','Посилання на фід (.xml)',{type:'url',hint:'Оновлюється автоматично при відкритті, якщо фід старший за 12 годин.'});
   $('#fPrice').innerHTML=
     fld('base','Від чого рахувати',{opts:[['price','Ціна у фіді (price)'],['drp','Дроп-ціна (drp)']]})+
     `<div class="two">${fld('markupPct','Націнка, %',{type:'number'})}${fld('markupFixed','Плюс, грн',{type:'number'})}</div>`+
@@ -947,28 +952,59 @@ $('#viewSettings').addEventListener('change',async e=>{
   toast('Збережено');
   if(S.cur&&S.cur.type==='rec'){renderProd();renderPub();renderCap()}
 });
-$('#feedFile').addEventListener('change',async e=>{
-  const f=e.target.files[0];if(!f)return;
+
+// ---------- імпорт фіду (за посиланням або з файлу) ----------
+let feedBusy=false;
+async function importFeed(getSrc,name){
+  if(feedBusy)return false;
+  feedBusy=true;
   const bar=$('#feedBar'),fill=bar.firstElementChild,prog=$('#feedProg');
-  bar.hidden=false;fill.style.width='0';prog.textContent='Читаю файл…';
+  bar.hidden=false;fill.style.width='0';prog.textContent='Завантажую фід…';
+  $('#btnFeedUpdate').disabled=true;
   try{
-    await offersClear();
-    const all=[];let batch=[],last=0;
-    const n=await parseFeed(f,async o=>{
-      all.push(o);batch.push(o);
-      if(batch.length>=400){const b=batch;batch=[];await offersPut(b)}
-    },(pr,cnt)=>{fill.style.width=Math.round(pr*100)+'%';prog.textContent=`Розібрано товарів: ${fmt(cnt)}`});
-    if(batch.length)await offersPut(batch);
+    const src=await getSrc();
+    const all=[];
+    const n=await parseFeed(src,async o=>{all.push(o)},(pr,cnt)=>{
+      fill.style.width=Math.round(pr*100)+'%';prog.textContent=`Розібрано товарів: ${fmt(cnt)}`});
     if(!n)throw new Error('У файлі не знайдено товарів. Потрібен YML-файл Websklad.');
+    // стару базу замінюємо тільки після успішного читання всього фіду
+    await offersClear();
+    for(let i=0;i<all.length;i+=400)await offersPut(all.slice(i,i+400));
     setOffers(all);
-    S.meta={at:Date.now(),name:f.name,count:n};
+    S.meta={at:Date.now(),name,count:n};
     await kvSet('meta',S.meta);
+    fill.style.width='100%';
     prog.textContent=`Готово: ${fmt(n)} товарів.`;
     S.cur=null;renderResult();renderStatus();
     toast('Фід оновлено');
-  }catch(err){prog.textContent='Помилка: '+(err.message||err)}
+    return true;
+  }catch(err){
+    let m=err.message||String(err);
+    if(/failed to fetch|networkerror|load failed/i.test(m))
+      m='Не вдалося завантажити за посиланням (імовірно, сервер блокує запити з браузера, CORS). Завантажте файл вручну або проксіюйте через Worker.';
+    prog.textContent='Помилка: '+m;
+    return false;
+  }finally{
+    $('#btnFeedUpdate').disabled=false;
+    feedBusy=false;
+  }
+}
+const fromUrl=()=>async()=>{
+  const url=S.settings.feedUrl;
+  if(!url)throw new Error('Вкажіть посилання на фід.');
+  const res=await fetch(url,{cache:'no-store'});
+  if(!res.ok)throw new Error('Сервер відповів HTTP '+res.status);
+  if(!res.body)throw new Error('Браузер не підтримує потокове читання.');
+  return {reader:res.body.getReader(),size:+res.headers.get('content-length')||0};
+};
+const feedName=()=>(S.settings.feedUrl||'').split('?')[0].split('/').pop()||'feed.xml';
+$('#btnFeedUpdate').onclick=()=>importFeed(fromUrl(),feedName());
+$('#feedFile').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  await importFeed(async()=>({reader:f.stream().getReader(),size:f.size}),f.name);
   e.target.value='';
 });
+
 $('#btnTestWk').onclick=async()=>{
   try{const j=await wk('/health');toast(j.instagramConfigured?'Worker працює':'Worker працює, але в ньому не задано IG_TOKEN або IG_ID')}
   catch(e){toast('Помилка: '+(e.message||e))}
@@ -997,6 +1033,12 @@ $('#btnTestIg').onclick=async()=>{
   S.posted=(await kvGet('posted'))||{};
   renderSettings();renderStatus();
   if(!S.offers.length)setTab('settings');
+  // автооновлення фіду, якщо він старший за 12 годин
+  const stale=!S.meta?.at||Date.now()-S.meta.at>12*36e5;
+  if(S.settings.feedUrl&&stale){
+    const ok=await importFeed(fromUrl(),feedName());
+    if(!ok)toast('Не вдалося оновити фід автоматично');
+  }
 })();
 </script>
 </body>
