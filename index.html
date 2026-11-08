@@ -57,6 +57,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 .prod h2{font-size:19px;line-height:1.3;font-weight:700}
 .meta{font-size:13px;color:var(--muted);margin-top:4px}
+.meta a{color:var(--brand)}
 .code{font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink)}
 .price{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--line);border-radius:12px;margin-top:12px}
 .price div{padding:10px 12px}
@@ -73,6 +74,7 @@ h3.sub{font-size:14px;font-weight:700;margin-top:16px}
 .own button.first{top:auto;right:auto;left:2px;bottom:2px;width:auto;height:22px;padding:0 7px;border-radius:11px;font-size:11px;font-weight:600;line-height:22px}
 .own .ownst{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.65)}
 .own .ownst.bad{background:rgba(252,228,225,.9);color:var(--bad);font-weight:800}
+.feat{display:block;width:100%;max-width:260px;aspect-ratio:1;object-fit:cover;border-radius:12px;background:#EEF1F4;border:1.5px solid var(--line)}
 .pi{display:grid;grid-template-columns:64px 1fr;gap:12px;padding:14px 0;border-top:1px solid var(--line)}
 .pi:first-child{border-top:0}
 .pi .pth{width:64px;height:64px;border-radius:10px;object-fit:cover;background:#EEF1F4}
@@ -82,14 +84,6 @@ h3.sub{font-size:14px;font-weight:700;margin-top:16px}
 .alert{white-space:pre-line;margin-top:10px;padding:10px 12px;border-radius:10px;font-size:14px;font-weight:500}
 .alert.bad{background:var(--bad-bg);color:var(--bad)}
 .alert.warn{background:var(--warn-bg);color:var(--warn)}
-
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.ph{position:relative;aspect-ratio:1;border:0;padding:0;border-radius:8px;overflow:hidden;background:#EEF1F4;cursor:pointer;outline-offset:2px}
-.ph img{width:100%;height:100%;object-fit:cover;display:block}
-.ph::after{content:"";position:absolute;inset:0;border-radius:8px;border:2px solid transparent}
-.ph.on::after{border-color:var(--brand);background:rgba(36,64,230,.12)}
-.ph i{position:absolute;top:4px;right:4px;min-width:22px;height:22px;border-radius:11px;background:var(--brand);color:#fff;font:700 12px/22px Onest,sans-serif;text-align:center;font-style:normal;padding:0 4px}
-.ph.nojpg::before{content:"не JPEG";position:absolute;left:4px;bottom:4px;z-index:1;background:var(--warn-bg);color:var(--warn);font-size:10px;font-weight:700;padding:1px 4px;border-radius:4px}
 
 textarea{width:100%;min-height:260px;border:1.5px solid var(--line);border-radius:12px;padding:12px;font-size:16px;line-height:1.45;resize:vertical}
 textarea:focus-visible{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(36,64,230,.2)}
@@ -153,15 +147,14 @@ nav.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--br
 
   <div id="viewSettings" hidden>
     <section class="sec">
-      <h2>Фід товарів</h2>
+      <h2>Файл товарів</h2>
       <p class="hint" id="feedInfo"></p>
-      <div id="fFeedUrl"></div>
-      <button class="btn primary block mt" id="btnFeedUpdate">Оновити фід зараз</button>
-      <label class="btn small mt" style="cursor:pointer">Або вибрати файл (.xml)
-        <input type="file" id="feedFile" accept=".xml,text/xml,application/xml" hidden>
+      <label class="btn primary block mt" style="cursor:pointer">Вибрати файл експорту (.xlsx)
+        <input type="file" id="feedFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
       </label>
       <div class="bar" id="feedBar" hidden><i></i></div>
       <p class="hint mt" id="feedProg"></p>
+      <p class="hint mt">Потрібен експорт Websklad з колонками «Фото», «Категорія», «Підкатегорія», «Назва», «Артикул», «Наявність», «Ціна». Файл читається прямо в браузері, а фото зберігаються в ньому ж. Поки іде завантаження, не закривайте сторінку.</p>
     </section>
 
     <section class="sec">
@@ -176,7 +169,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--br
     </section>
 
     <section class="sec">
-      <h2>Власні фото (imgbb)</h2>
+      <h2>Фото (imgbb)</h2>
       <div id="fImg"></div>
     </section>
 
@@ -213,7 +206,7 @@ const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=n=>String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' ');
 
-// <PARSER>
+// <XLSX>
 const ENT={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',ensp:' ',emsp:' ',ndash:'–',mdash:'—',Mdash:'—',laquo:'«',raquo:'»',hellip:'…',deg:'°',times:'×',bull:'•',rsquo:'’',lsquo:'‘',ldquo:'“',rdquo:'”',copy:'©',reg:'®',trade:'™',frac12:'½',frac14:'¼',plusmn:'±',asymp:'≈',ge:'≥',le:'≤',Omega:'Ω',Phi:'Φ',Pi:'Π',Oslash:'Ø',auml:'ä',euml:'ë',brvbar:'¦',Prime:'″',lrm:'',rlm:'',shy:'',lbsp:'',middot:'·',middo:'·',ordm:'º',mu:'μ',micro:'µ',sup2:'²',sup3:'³',phi:'φ',minus:'−'};
 function decodeEntities(s){
   return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z0-9]+);/gi,(m,e)=>{
@@ -224,75 +217,193 @@ function decodeEntities(s){
     return ENT[e]!==undefined?ENT[e]:m;
   });
 }
-function stripHtml(h){
-  return decodeEntities(h.replace(/<!\[CDATA\[|\]\]>/g,'')
-    .replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div|h[1-6]|ul|ol|tr)>/gi,'\n')
-    .replace(/<li[^>]*>/gi,'• ').replace(/<\/li>/gi,'\n').replace(/<[^>]+>/g,''));
-}
-function htmlToText(h){
-  if(!h)return '';
-  let t=stripHtml(h);
-  if(/<\/?[a-z]|&[a-z#0-9]+;/i.test(t))t=stripHtml(t); // подвійне кодування в деяких описах
-  return t.replace(/[ \t\u00a0]+/g,' ').replace(/ *\n */g,'\n').replace(/\n{3,}/g,'\n\n').trim();
-}
-function tag(x,t){const m=x.match(new RegExp('<'+t+'>([\\s\\S]*?)</'+t+'>'));return m?m[1]:''}
-function parseOffer(x){
-  const head=(x.match(/<offer\s+([^>]*)>/)||[])[1]||'';
-  const id=(head.match(/\bid="([^"]*)"/)||[])[1]||'';
-  const txt=t=>decodeEntities(tag(x,t).replace(/<!\[CDATA\[|\]\]>/g,'')).trim();
-  const num=t=>{const v=parseFloat(tag(x,t));return isFinite(v)?v:0};
-  const pics=[...x.matchAll(/<picture>([\s\S]*?)<\/picture>/g)].map(m=>decodeEntities(m[1].trim())).filter(Boolean);
-  const params=[];
-  for(const m of x.matchAll(/<param name="([^"]*)">([\s\S]*?)<\/param>/g)){
-    const k=decodeEntities(m[1]).trim(), v=decodeEntities(m[2]).trim();
-    if(k&&v&&!/^(Состояние|Стан|Производитель|Виробник)$/i.test(k))params.push([k,v.slice(0,120)]);
-    if(params.length>=14)break;
+
+// --- мінімальний читач ZIP (xlsx — це zip): читає лише потрібні файли, без завантаження всього архіву в пам'ять ---
+const dec8=new TextDecoder('utf-8');
+async function zipOpen(file){
+  const tailLen=Math.min(file.size,66000);
+  const tail=new DataView(await file.slice(file.size-tailLen).arrayBuffer());
+  let e=-1;
+  for(let i=tail.byteLength-22;i>=0;i--){if(tail.getUint32(i,true)===0x06054b50){e=i;break}}
+  if(e<0)throw new Error('Це не схоже на файл .xlsx.');
+  const total=tail.getUint16(e+10,true),cdSize=tail.getUint32(e+12,true),cdOff=tail.getUint32(e+16,true);
+  if(total===0xffff||cdOff===0xffffffff)throw new Error('Файл надто великий для цього читача (ZIP64).');
+  const cdBuf=await file.slice(cdOff,cdOff+cdSize).arrayBuffer();
+  const cd=new DataView(cdBuf),u8=new Uint8Array(cdBuf);
+  const entries=new Map();
+  let p=0;
+  for(let i=0;i<total&&p+46<=cd.byteLength;i++){
+    if(cd.getUint32(p,true)!==0x02014b50)break;
+    const method=cd.getUint16(p+10,true),csize=cd.getUint32(p+20,true);
+    const nlen=cd.getUint16(p+28,true),elen=cd.getUint16(p+30,true),clen=cd.getUint16(p+32,true),off=cd.getUint32(p+42,true);
+    entries.set(dec8.decode(u8.subarray(p+46,p+46+nlen)),{method,csize,off,nlen,elen});
+    p+=46+nlen+elen+clen;
   }
-  const descUa=htmlToText(tag(x,'description_ua')), descRu=htmlToText(tag(x,'description'));
-  return {
-    key:txt('vendorCode').toLowerCase(), code:txt('vendorCode'), id,
-    name:txt('name'), nameUa:txt('name_ua'), desc:(descUa||descRu).slice(0,2200),
-    pics, price:num('price'), drp:num('drp'), qty:num('quantity_in_stock'),
-    inStock:/available="true"/.test(head)||txt('stock_status')==='instock',
-    brand:txt('brand'), cat:txt('category_ua')||txt('category'), sub:txt('sub_category_ua')||txt('sub_category'),
-    url:txt('url'), country:txt('country_of_origin'), params
-  };
+  return {file,entries};
 }
-// src = {reader, size}: reader — ReadableStreamDefaultReader (з файлу або з fetch), size — розмір у байтах (0, якщо невідомий)
-async function parseFeed(src,onOffer,onProgress){
-  const reader=src.reader, size=src.size||0, dec=new TextDecoder('utf-8');
-  let buf='',bytes=0,n=0;
-  for(;;){
-    const {value,done}=await reader.read();
-    if(done)buf+=dec.decode(); else {bytes+=value.length;buf+=dec.decode(value,{stream:true});}
-    let p=0;
-    for(;;){
-      const s=buf.indexOf('<offer ',p);
-      if(s<0){p=Math.max(p,buf.length-16);break}
-      const e=buf.indexOf('</offer>',s);
-      if(e<0){p=s;break}
-      const o=parseOffer(buf.slice(s,e+8));
-      p=e+8;
-      if(o.code){await onOffer(o);n++}
+async function inflateRaw(data){
+  if(typeof DecompressionStream==='undefined')throw new Error('Браузер застарів: оновіть його, щоб читати .xlsx.');
+  const stream=new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function zipRead(z,name){
+  const en=z.entries.get(name);if(!en)return null;
+  let buf=await z.file.slice(en.off,en.off+30+en.nlen+en.elen+en.csize+64).arrayBuffer();
+  let dv=new DataView(buf);
+  if(buf.byteLength<30||dv.getUint32(0,true)!==0x04034b50)throw new Error('Пошкоджений файл xlsx.');
+  const start=30+dv.getUint16(26,true)+dv.getUint16(28,true);
+  if(start+en.csize>buf.byteLength)buf=await z.file.slice(en.off,en.off+start+en.csize).arrayBuffer();
+  const data=new Uint8Array(buf,start,en.csize);
+  if(en.method===0)return data.slice();
+  if(en.method!==8)throw new Error('Непідтримуваний спосіб стиснення в xlsx.');
+  return inflateRaw(data);
+}
+
+// --- XML-допоміжні ---
+function attr(tag,name){const m=tag.match(new RegExp('[\\s<]'+name+'="([^"]*)"'));return m?decodeEntities(m[1]):''}
+function colIdx(s){let n=0;for(const ch of s)n=n*26+ch.charCodeAt(0)-64;return n-1}
+function parseRels(xml){
+  const m=new Map();
+  for(const t of xml.matchAll(/<Relationship\b[^>]*>/g))
+    m.set(attr(t[0],'Id'),{type:attr(t[0],'Type'),target:attr(t[0],'Target'),ext:attr(t[0],'TargetMode')==='External'});
+  return m;
+}
+function relsPath(p){const i=p.lastIndexOf('/');return p.slice(0,i+1)+'_rels/'+p.slice(i+1)+'.rels'}
+function resolvePath(owner,target){
+  if(target[0]==='/')return target.slice(1);
+  const parts=owner.split('/').slice(0,-1);
+  for(const seg of target.split('/')){if(seg==='..')parts.pop();else if(seg&&seg!=='.')parts.push(seg)}
+  return parts.join('/');
+}
+function parseShared(xml){
+  const out=[];
+  for(const m of xml.matchAll(/<si(?:\s[^>]*)?(?:\/>|>([\s\S]*?)<\/si>)/g)){
+    const body=(m[1]||'').replace(/<rPh[\s\S]*?<\/rPh>/g,'');
+    let t='';
+    for(const x of body.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g))t+=x[1];
+    out.push(decodeEntities(t));
+  }
+  return out;
+}
+function parseSheet(xml,shared){
+  const rows=[];
+  for(const rm of xml.matchAll(/<row\b[^>]*?\sr="(\d+)"[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/g)){
+    const c={};
+    for(const cm of (rm[2]||'').matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)){
+      const a=cm[1],ref=a.match(/\sr="([A-Z]+)\d+"/)||a.match(/^r="([A-Z]+)\d+"/);
+      if(!ref||cm[2]===undefined)continue;
+      const t=(a.match(/\st="(\w+)"/)||[])[1]||'n',body=cm[2];
+      let v='';
+      if(t==='inlineStr'){for(const x of body.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g))v+=decodeEntities(x[1])}
+      else{
+        const vm=body.match(/<v>([\s\S]*?)<\/v>/);
+        if(vm)v=t==='s'?(shared[+vm[1]]??''):decodeEntities(vm[1]);
+      }
+      if(v!=='')c[colIdx(ref[1])]=v;
     }
-    buf=buf.slice(p);
-    if(onProgress)onProgress(size?Math.min(1,bytes/size):0,n);
-    if(done)break;
+    rows.push({r:+rm[1],c});
   }
-  return n;
+  return rows;
 }
-// </PARSER>
+
+// Читає xlsx Websklad: товари з таблиці + вбудовані фото (прив'язані до рядків) + посилання на YouTube.
+async function readXlsx(file){
+  const z=await zipOpen(file);
+  const rd=async n=>{const u=await zipRead(z,n);return u?dec8.decode(u):null};
+  const sheetPath=[...z.entries.keys()].filter(n=>/^xl\/worksheets\/sheet\d+\.xml$/.test(n))
+    .sort((a,b)=>parseInt(a.match(/\d+/g).pop())-parseInt(b.match(/\d+/g).pop()))[0];
+  if(!sheetPath)throw new Error('У файлі не знайдено аркуш із таблицею. Потрібен .xlsx.');
+  const [shXml,ssXml,shRels]=await Promise.all([rd(sheetPath),rd('xl/sharedStrings.xml'),rd(relsPath(sheetPath))]);
+  const rows=parseSheet(shXml,ssXml?parseShared(ssXml):[]);
+
+  // колонки шукаємо за заголовками
+  const H={};let hdrRow=0;
+  for(const row of rows.slice(0,10)){
+    const m={};
+    for(const [i,v] of Object.entries(row.c)){
+      const t=String(v).trim().toLowerCase();
+      if(t==='фото')m.photo=+i;
+      else if(t==='youtube')m.yt=+i;
+      else if(t.startsWith('підкат'))m.sub=+i;
+      else if(t.startsWith('катег'))m.cat=+i;
+      else if(t==='назва')m.name=+i;
+      else if(t==='артикул')m.code=+i;
+      else if(t.startsWith('наявн'))m.stock=+i;
+      else if(t==='ціна'||t==='цена')m.price=+i;
+    }
+    if(m.code!==undefined&&m.name!==undefined){Object.assign(H,m);hdrRow=row.r;break}
+  }
+  if(H.code===undefined)throw new Error('Не знайдено колонки «Назва» й «Артикул». Потрібен експорт Websklad у форматі .xlsx.');
+
+  // посилання на YouTube (гіперпосилання в клітинках)
+  const rels=shRels?parseRels(shRels):new Map();
+  const ytByRow=new Map();
+  for(const t of shXml.matchAll(/<hyperlink\b[^>]*>/g)){
+    const ref=attr(t[0],'ref').match(/^([A-Z]+)(\d+)$/),rid=attr(t[0],'r:id');
+    if(!ref||!rid)continue;
+    if(H.yt!==undefined&&colIdx(ref[1])!==H.yt)continue;
+    const rel=rels.get(rid);
+    if(rel&&rel.ext&&/^https?:/i.test(rel.target))ytByRow.set(+ref[2],rel.target);
+  }
+
+  // фото: картинки лежать у drawing і прив'язані до клітинок колонки «Фото»
+  const photoByRow=new Map();
+  const drel=[...rels.values()].find(r=>/\/drawing$/.test(r.type));
+  if(drel&&H.photo!==undefined){
+    const dPath=resolvePath(sheetPath,drel.target);
+    const [dXml,dRels]=await Promise.all([rd(dPath),rd(relsPath(dPath))]);
+    if(dXml&&dRels){
+      const dr=parseRels(dRels);
+      for(const a of dXml.matchAll(/<(?:xdr:)?(oneCellAnchor|twoCellAnchor)\b[\s\S]*?<\/(?:xdr:)?\1>/g)){
+        const f=a[0].match(/<(?:xdr:)?col>(\d+)<\/(?:xdr:)?col>[\s\S]*?<(?:xdr:)?row>(\d+)<\/(?:xdr:)?row>/);
+        const e=a[0].match(/r:embed="([^"]+)"/);
+        if(!f||!e||+f[1]!==H.photo)continue;
+        const rel=dr.get(e[1]);
+        if(rel&&!rel.ext)photoByRow.set(+f[2]+1,resolvePath(dPath,rel.target));
+      }
+    }
+  }
+
+  const offers=[],jobs=[];
+  for(const row of rows){
+    if(row.r<=hdrRow)continue;
+    const g=i=>i===undefined?'':String(row.c[i]??'').trim();
+    const code=g(H.code),name=g(H.name);
+    if(!code||!name)continue;
+    const stock=g(H.stock).toLowerCase();
+    const path=photoByRow.get(row.r);
+    const hasPhoto=!!(path&&z.entries.has(path));
+    const o={
+      key:code.toLowerCase(),code,id:'',name,nameUa:'',cat:g(H.cat),sub:g(H.sub),
+      price:parseFloat(g(H.price).replace(',','.'))||0,drp:0,qty:0,
+      inStock:/наявн/.test(stock)&&!/нема|відсутн|закін/.test(stock),
+      brand:'',country:'',desc:'',params:[],youtube:ytByRow.get(row.r)||'',hasPhoto
+    };
+    offers.push(o);
+    if(hasPhoto)jobs.push({key:o.key,path});
+  }
+  return {z,offers,jobs};
+}
+const mimeOf=p=>/\.png$/i.test(p)?'image/png':/\.webp$/i.test(p)?'image/webp':/\.gif$/i.test(p)?'image/gif':'image/jpeg';
+// </XLSX>
 
 // ---------- storage (IndexedDB with in-memory fallback) ----------
-const DB={db:null,ok:false,kv:new Map(),offers:[]};
+const DB={db:null,ok:false,kv:new Map(),offers:[],imgs:new Map()};
 const rq=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 const txDone=tx=>new Promise((res,rej)=>{tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error)});
 async function dbOpen(){
   try{
     if(!window.indexedDB)throw 0;
     DB.db=await new Promise((res,rej)=>{
-      const r=indexedDB.open('ws-insta',1);
-      r.onupgradeneeded=()=>{r.result.createObjectStore('offers',{keyPath:'key'});r.result.createObjectStore('kv')};
+      const r=indexedDB.open('ws-insta',2);
+      r.onupgradeneeded=e=>{
+        const db=r.result;
+        if(!db.objectStoreNames.contains('offers'))db.createObjectStore('offers',{keyPath:'key'});
+        if(!db.objectStoreNames.contains('kv'))db.createObjectStore('kv');
+        if(!db.objectStoreNames.contains('imgs'))db.createObjectStore('imgs');
+        // старий формат (XML-фід) несумісний: очищаємо товари, їх треба завантажити з xlsx
+        if(e.oldVersion===1)r.transaction.objectStore('offers').clear();
+      };
       r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);
     });
     DB.ok=true;
@@ -303,11 +414,20 @@ async function kvSet(k,v){DB.kv.set(k,v);if(!DB.ok)return;try{const tx=DB.db.tra
 async function offersClear(){DB.offers=[];if(!DB.ok)return;const tx=DB.db.transaction('offers','readwrite');tx.objectStore('offers').clear();await txDone(tx)}
 async function offersPut(arr){DB.offers.push(...arr);if(!DB.ok)return;const tx=DB.db.transaction('offers','readwrite');const st=tx.objectStore('offers');arr.forEach(o=>st.put(o));await txDone(tx)}
 async function offersAll(){if(!DB.ok)return DB.offers;try{return await rq(DB.db.transaction('offers').objectStore('offers').getAll())}catch{return DB.offers}}
+// фото товарів: ключ — артикул (малими літерами), значення — {b:ArrayBuffer,t:mime}
+async function imgClear(){DB.imgs.clear();if(!DB.ok)return;const tx=DB.db.transaction('imgs','readwrite');tx.objectStore('imgs').clear();await txDone(tx)}
+async function imgPut(pairs){
+  if(!pairs.length)return;
+  if(!DB.ok){pairs.forEach(([k,v])=>DB.imgs.set(k,v));return}
+  const tx=DB.db.transaction('imgs','readwrite');const st=tx.objectStore('imgs');
+  pairs.forEach(([k,v])=>st.put(v,k));
+  await txDone(tx);
+}
+async function imgGet(k){if(!DB.ok)return DB.imgs.get(k)||null;try{return (await rq(DB.db.transaction('imgs').objectStore('imgs').get(k)))||null}catch{return null}}
 
 // ---------- state ----------
 const DEF={
-  feedUrl:'https://www.websklad.biz.ua/wp-content/uploads/current-Universalnaya.xml',
-  markupPct:0,markupFixed:0,round:5,base:'price',showPrice:true,codeInTitle:true,useSearch:true,imgbbKey:'',workerUrl:'',workerKey:'',
+  markupPct:0,markupFixed:0,round:5,showPrice:true,codeInTitle:true,useSearch:true,imgbbKey:'',workerUrl:'',workerKey:'',
   geminiKey:'',model:'gemini-3.5-flash',tags:8,cta:'📩 Замовлення — в Direct',extra:'',
   igId:'',igToken:'',host:'https://graph.facebook.com',ver:'v23.0',
   stop:"victoria's secret, nike, adidas, puma, gucci, louis vuitton, chanel, dior, prada, versace, rolex, apple, samsung, jbl, dyson, lego"
@@ -315,11 +435,15 @@ const DEF={
 const S={settings:{...DEF},offers:[],byCode:new Map(),meta:null,cur:null,posted:{},sched:{items:[],loaded:false,loading:false,err:'',edit:null,del:null,now:null}};
 
 function setOffers(rows){S.offers=rows;S.byCode=new Map(rows.map(o=>[o.key,o]))}
+function setCur(v){
+  const o=S.cur;
+  if(o&&o.feed&&o.feed.objUrl)URL.revokeObjectURL(o.feed.objUrl);
+  S.cur=v;return v;
+}
 
 // ---------- pure helpers ----------
 function finalPrice(o,s=S.settings){
-  const base=s.base==='drp'?o.drp:o.price;
-  let p=base*(1+(+s.markupPct||0)/100)+(+s.markupFixed||0);
+  let p=o.price*(1+(+s.markupPct||0)/100)+(+s.markupFixed||0);
   const st=+s.round||0;
   p=st>0?Math.ceil(p/st-1e-9)*st:Math.round(p);
   return p;
@@ -338,12 +462,10 @@ function findProducts(q){
   const digits=/^\d+$/.test(norm);
   const hit=S.byCode.get(digits?'ws'+norm:norm);
   if(hit)return {exact:hit,list:[]};
-  if(digits){const byId=S.offers.find(o=>o.id===norm);if(byId)return {exact:byId,list:[],viaId:true}}
   const words=q.toLowerCase().split(/\s+/);
-  const list=S.offers.filter(o=>{const h=(o.name+' '+o.nameUa+' '+o.code).toLowerCase();return words.every(w=>h.includes(w))}).slice(0,8);
+  const list=S.offers.filter(o=>{const h=(o.name+' '+o.cat+' '+o.sub+' '+o.code).toLowerCase();return words.every(w=>h.includes(w))}).slice(0,8);
   return {exact:null,list};
 }
-function isJpeg(u){return /\.jpe?g($|\?)/i.test(u)}
 function composeCaption(o,text,hashtags,s=S.settings){
   let out=text.trim();
   if(s.codeInTitle&&o.code){
@@ -373,29 +495,37 @@ $('#tabPost').onclick=()=>setTab('post');$('#tabSched').onclick=()=>setTab('sche
 
 function renderStatus(){
   const m=S.meta,n=S.offers.length;
-  if(!n){$('#feedStatus').innerHTML='Фід не завантажено. Додайте посилання або файл у налаштуваннях.';$('#feedInfo').textContent='Фід ще не завантажено.';return}
+  if(!n){$('#feedStatus').innerHTML='Товари не завантажено. Додайте файл у налаштуваннях.';$('#feedInfo').textContent='Файл ще не завантажено.';return}
   const d=m?.at?new Date(m.at).toLocaleString('uk-UA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
   const inS=S.offers.filter(o=>o.inStock).length;
   $('#feedStatus').innerHTML=`<b>${fmt(n)}</b> товарів, у наявності <b>${fmt(inS)}</b>${d?' · оновлено '+d:''}`;
-  $('#feedInfo').textContent=`Завантажено ${fmt(n)} товарів${m?.name?' з «'+m.name+'»':''}${d?', '+d:''}.${DB.ok?'':' Сховище недоступне: після закриття сторінки фід доведеться завантажити знову.'}`;
+  $('#feedInfo').textContent=`Завантажено ${fmt(n)} товарів${m?.name?' з файлу «'+m.name+'»':''}${d?', '+d:''}.${DB.ok?'':' Сховище недоступне: після закриття сторінки файл доведеться завантажити знову.'}`;
 }
 
 // ---------- search & product view ----------
 async function doFind(){
   const q=$('#q').value;
-  if(!S.offers.length){toast('Спочатку завантажте фід у налаштуваннях');setTab('settings');return}
+  if(!S.offers.length){toast('Спочатку завантажте файл у налаштуваннях');setTab('settings');return}
   const r=findProducts(q);
-  if(r.exact)return openProduct(r.exact,r.viaId);
-  S.cur={type:r.list.length?'list':'none',list:r.list,q};
+  if(r.exact)return openProduct(r.exact);
+  setCur({type:r.list.length?'list':'none',list:r.list,q});
   renderResult();
 }
-function openProduct(o,viaId){
-  const sel=[];
-  for(let i=0;i<o.pics.length&&sel.length<10;i++)if(isJpeg(o.pics[i]))sel.push(i);
-  if(!sel.length)for(let i=0;i<o.pics.length&&sel.length<10;i++)sel.push(i);
-  S.cur={type:'rec',rec:o,sel,own:[],sched:null,all:false,caption:'',busy:false,confirm:false,ack:false,pub:null,viaId};
+function openProduct(o){
+  const P=setCur({type:'rec',rec:o,own:[],sched:null,caption:'',busy:false,confirm:false,ack:false,pub:null,feed:null,feedLoaded:!o.hasPhoto,useFeed:!!o.hasPhoto});
   renderResult();
   $('#result').scrollIntoView({behavior:'smooth',block:'start'});
+  if(o.hasPhoto)loadFeedPhoto(P);
+}
+async function loadFeedPhoto(P){
+  const rec=await imgGet(P.rec.key);
+  if(S.cur!==P)return;
+  if(rec){
+    const blob=new Blob([rec.b],{type:rec.t||'image/jpeg'});
+    P.feed={blob,objUrl:URL.createObjectURL(blob),url:''};
+  }else P.useFeed=false;
+  P.feedLoaded=true;
+  renderPhotos();renderPub();
 }
 function renderResult(){
   const P=S.cur,box=$('#result');
@@ -406,13 +536,13 @@ function renderResult(){
     box.innerHTML=`<section class="sec"><h2>Що зараз шукають</h2>
       ${P.busy?'<button class="btn block" disabled><span class="spin"></span> Gemini аналізує попит…</button>':''}
       ${P.err?`<div class="alert bad">${esc(P.err)}</div>`:''}
-      ${P.items?`<div class="list">${P.items.map((it,i)=>`<button data-act="chooseS" data-i="${i}"><b>${esc(it.o.code)}</b> · ${esc(it.o.nameUa||it.o.name)}<div class="hint">${esc(it.reason)}</div><div class="hint">${fmt(it.o.price)} грн · у наявності ${it.o.qty} шт</div></button>`).join('')}</div>`:''}
+      ${P.items?`<div class="list">${P.items.map((it,i)=>`<button data-act="chooseS" data-i="${i}"><b>${esc(it.o.code)}</b> · ${esc(it.o.name)}<div class="hint">${esc(it.reason)}</div><div class="hint">${fmt(it.o.price)} грн</div></button>`).join('')}</div>`:''}
       ${!P.busy?'<button class="btn small mt" data-act="repick">Підібрати інші</button>':''}
-      <p class="hint mt">${S.settings.useSearch!==false?'Це оцінка Gemini за даними пошуку в інтернеті':'Це оцінка Gemini за сезоном і власними знаннями, без пошуку'}, а не точна статистика запитів. Наявність береться з вашого фіду${age>=2?`, який оновлено ${age} дн. тому, тож вона могла змінитися`:''}.</p></section>`;
+      <p class="hint mt">${S.settings.useSearch!==false?'Це оцінка Gemini за даними пошуку в інтернеті':'Це оцінка Gemini за сезоном і власними знаннями, без пошуку'}, а не точна статистика запитів. Наявність береться з вашого файлу${age>=2?`, який оновлено ${age} дн. тому, тож вона могла змінитися`:''}.</p></section>`;
     return;
   }
   if(P.type==='list'){
-    box.innerHTML=`<section class="sec"><h2>Схожі товари</h2><div class="list">${P.list.map((o,i)=>`<button data-act="choose" data-i="${i}"><b>${esc(o.code)}</b> · ${esc(o.nameUa||o.name)}<div class="hint">${o.inStock?'є в наявності':'немає в наявності'} · ${fmt(o.price)} грн</div></button>`).join('')}</div></section>`;
+    box.innerHTML=`<section class="sec"><h2>Схожі товари</h2><div class="list">${P.list.map((o,i)=>`<button data-act="choose" data-i="${i}"><b>${esc(o.code)}</b> · ${esc(o.name)}<div class="hint">${o.inStock?'є в наявності':'немає в наявності'} · ${fmt(o.price)} грн</div></button>`).join('')}</div></section>`;
     return;
   }
   box.innerHTML='<section class="sec prod" id="sProd"></section><section class="sec" id="sPhotos"></section><section class="sec" id="sCap"></section><section class="sec" id="sPub"></section>';
@@ -420,22 +550,21 @@ function renderResult(){
 }
 function renderProd(){
   const o=S.cur.rec,risk=riskHits(o),price=finalPrice(o);
-  const gain=price-o.drp;
+  const gain=price-o.price;
   $('#sProd').innerHTML=`
-    <h2>${esc(o.nameUa||o.name)}</h2>
-    <div class="meta"><span class="code">${esc(o.code)}</span> · ${esc(o.cat)}${o.sub?' / '+esc(o.sub):''}${o.brand&&o.brand!=='Без бренда'?' · '+esc(o.brand):''}</div>
+    <h2>${esc(o.name)}</h2>
+    <div class="meta"><span class="code">${esc(o.code)}</span> · ${esc(o.cat)}${o.sub?' / '+esc(o.sub):''}${o.youtube?` · <a href="${esc(o.youtube)}" target="_blank" rel="noopener">відео на YouTube</a>`:''}</div>
     <div class="pills">
-      <span class="pill ${o.inStock?'ok':'bad'}">${o.inStock?'В наявності'+(o.qty?': '+o.qty+' шт':''):'Немає в наявності'}</span>
-      ${S.cur.viaId?'<span class="pill warn">знайдено за id, не за артикулом</span>':''}
+      <span class="pill ${o.inStock?'ok':'bad'}">${o.inStock?'В наявності':'Немає в наявності'}</span>
       ${S.posted[o.key]&&Date.now()-S.posted[o.key]<30*864e5?`<span class="pill warn">вже публікувався ${new Date(S.posted[o.key]).toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit'})}</span>`:''}
     </div>
     <div class="price">
-      <div><small>Ціна у фіді (price)</small><b>${fmt(o.price)} ₴</b><small>закупка (drp): ${fmt(o.drp)} ₴</small></div>
-      <div class="mine"><small>Ціна в пості</small><b>${fmt(price)} ₴</b><small>різниця з drp: ${gain>=0?'+':''}${fmt(gain)} ₴</small></div>
+      <div><small>Ціна у файлі</small><b>${fmt(o.price)} ₴</b><small>з експорту Websklad</small></div>
+      <div class="mine"><small>Ціна в пості</small><b>${fmt(price)} ₴</b><small>націнка: ${gain>=0?'+':''}${fmt(gain)} ₴</small></div>
     </div>
     ${!o.inStock?'<div class="alert bad">Товару немає в наявності. Публікувати його не варто.</div>':''}
     ${risk.length?`<div class="alert warn">Можливий ризик для акаунта: збіг із «${esc(risk.join(', '))}». Перевірте, що це оригінал, а не копія.</div>`:''}
-    ${!o.pics.length?'<div class="alert bad">У фіді немає фото для цього товару.</div>':''}`;
+    ${o.price<=0?'<div class="alert warn">У файлі немає ціни для цього товару.</div>':''}`;
 }
 function ownBlock(P){
   const items=P.own.map((x,i)=>`<div class="own">${x.thumb?`<img src="${esc(x.thumb)}" alt="">`:''}${x.state==='uploading'?'<span class="ownst"><span class="spin"></span></span>':''}${x.state==='err'?'<span class="ownst bad">!</span>':''}<button data-act="ownDel" data-i="${i}" aria-label="Прибрати фото">×</button></div>`).join('');
@@ -447,22 +576,17 @@ function ownBlock(P){
     <label class="btn small mt" style="cursor:pointer">Додати з галереї<input type="file" id="ownFile" accept="image/*" multiple hidden></label>`;
 }
 function renderPhotos(){
-  const P=S.cur,o=P.rec;
-  let h='';
-  if(!o.pics.length){h='<h2>Фото</h2><p class="empty">У фіді немає фото. Додайте власні нижче.</p>'}
-  else{
-    const shown=P.all?o.pics.length:Math.min(o.pics.length,16);
-    const nonJ=P.sel.filter(i=>!isJpeg(o.pics[i])).length;
-    const max=10-P.own.length;
-    h='<h2>Фото для посту</h2><div class="grid">';
-    for(let i=0;i<shown;i++){
-      const pos=P.sel.indexOf(i);
-      h+=`<button class="ph ${pos>=0?'on':''} ${isJpeg(o.pics[i])?'':'nojpg'}" data-act="pick" data-i="${i}" aria-pressed="${pos>=0}" aria-label="Фото ${i+1}"><img src="${esc(o.pics[i])}" loading="lazy" referrerpolicy="no-referrer" alt="">${pos>=0?`<i>${pos+1}</i>`:''}</button>`;
-    }
-    h+='</div>';
-    if(o.pics.length>shown)h+=`<button class="btn small mt" data-act="allpics">Показати всі (${o.pics.length})</button>`;
-    h+=`<p class="hint mt">Обрано ${P.sel.length} з ${max}.${P.own.length?' Ваші фото підуть першими.':' Перше фото стане обкладинкою.'} Номер на фото показує порядок.</p>`;
-    if(nonJ)h+=`<div class="alert warn">${nonJ} фото не у форматі JPEG. Instagram API приймає тільки JPEG, такі фото краще прибрати.</div>`;
+  const P=S.cur,o=P.rec,F=P.feed;
+  let h='<h2>Фото для посту</h2>';
+  if(!o.hasPhoto||(P.feedLoaded&&!F)){
+    h+='<p class="empty">У файлі немає фото для цього товару. Додайте власні нижче.</p>';
+  }else if(!P.feedLoaded){
+    h+='<p class="hint"><span class="spin"></span> Завантажую фото…</p>';
+  }else{
+    h+=`<img class="feat" src="${esc(F.objUrl)}" alt="Фото товару з файлу">
+    <label class="chk"><input type="checkbox" id="useFeed" ${P.useFeed?'checked':''}> Додати це фото в пост</label>
+    <p class="hint">Фото з файлу маленьке (300×300), перед публікацією його буде збільшено до 1080×1080. Якщо є власні фото, краще використати їх.</p>`;
+    if(P.useFeed&&!S.settings.imgbbKey)h+='<div class="alert warn">Щоб опублікувати це фото, додайте ключ imgbb в налаштуваннях: Instagram бере фото тільки за посиланням.</div>';
   }
   h+=ownBlock(P);
   $('#sPhotos').innerHTML=h;
@@ -470,7 +594,7 @@ function renderPhotos(){
 function renderCap(){
   const P=S.cur;
   const hasKey=!!S.settings.geminiKey;
-  const notes=`<label class="f">Ваші відомості про товар (необов’язково)<textarea id="notes" style="min-height:80px" placeholder="Наприклад: гарантія 1 рік, є в чорному й синьому кольорах">${esc(P.notes||'')}</textarea><small>Gemini використає їх як факти й поставить на перше місце.</small></label>`;
+  const notes=`<label class="f">Ваші відомості про товар (необов’язково)<textarea id="notes" style="min-height:80px" placeholder="Наприклад: розмір 25×18 см, кордура, гарантія 1 рік, чорний і койот">${esc(P.notes||'')}</textarea><small>У файлі є лише назва й категорія. Розміри, матеріал, комплектацію та гарантію Gemini візьме тільки звідси.</small></label>`;
   let h='<h2>Підпис українською</h2>';
   if(!P.caption&&!P.busy){
     h+=notes;
@@ -495,7 +619,19 @@ function updateCount(){
 }
 function nowLocalInput(d=new Date()){return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,16)}
 function workerOn(){const s=S.settings;return !!(s.workerUrl&&s.workerKey)}
-function photoUrls(P){return [...P.own.filter(x=>x.state==='ok').map(x=>x.url),...P.sel.map(i=>P.rec.pics[i])].slice(0,10)}
+function photoUrls(P){
+  const u=P.own.filter(x=>x.state==='ok').map(x=>x.url);
+  if(P.useFeed&&P.feed&&P.feed.url)u.push(P.feed.url);
+  return u.slice(0,10);
+}
+// фото з файлу спершу треба завантажити в imgbb, бо Instagram приймає тільки посилання
+async function ensureFeedUrl(P){
+  const F=P.feed;
+  if(!P.useFeed||!F||F.url)return;
+  if(!S.settings.imgbbKey)throw new Error('Додайте ключ imgbb в налаштуваннях, щоб опублікувати фото з файлу.');
+  const {b64}=await toJpegB64(F.blob,{target:1080});
+  F.url=await uploadImgbb(b64,'feed-'+P.rec.code);
+}
 function fmtDT(ms){return new Date(ms).toLocaleString('uk-UA',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
 function renderPub(){
   const P=S.cur,el=$('#sPub');if(!el)return;
@@ -504,10 +640,13 @@ function renderPub(){
   if(!o.inStock)warns.push('товару немає в наявності');
   if(riskHits(o).length)warns.push('ризиковий бренд');
   const n=[...P.caption].length;
-  const nPh=P.own.length+P.sel.length;
+  const feedOn=!!(P.useFeed&&P.feed);
+  const nPh=P.own.length+(feedOn?1:0);
+  const feedWait=P.useFeed&&!P.feedLoaded;
+  const noImgbb=feedOn&&!s.imgbbKey;
   const ownBusy=P.own.some(x=>x.state==='uploading'),ownBad=P.own.some(x=>x.state==='err');
   const noCreds=!s.igId||!s.igToken;
-  const base=P.caption&&n<=2200&&nPh>0&&!ownBusy&&!ownBad&&!P.busy&&!P.pubBusy&&!Z.busy;
+  const base=P.caption&&n<=2200&&nPh>0&&!feedWait&&!noImgbb&&!ownBusy&&!ownBad&&!P.busy&&!P.pubBusy&&!Z.busy;
   const readyNow=base&&!noCreds,canSched=base&&workerOn();
   const ackBox=id=>warns.length?`<label class="chk"><input type="checkbox" id="${id}" ${P.ack?'checked':''}> Розумію, що ${esc(warns.join(' і '))}, і все одно продовжую</label>`:'';
   let h='<h2>Публікація</h2>';
@@ -517,8 +656,10 @@ function renderPub(){
     h+=`<div class="done">Заплановано на ${esc(fmtDT(Z.done.at))}. Worker опублікує пост сам.</div><button class="btn block mt" data-act="openList">Відкрити відкладені</button>`;
   }else{
     if(!P.caption)h+='<p class="hint">Спочатку напишіть підпис.</p>';
+    else if(nPh===0&&!feedWait)h+='<p class="hint">Немає жодного фото. Додайте фото з файлу або власні.</p>';
     else if(ownBusy)h+='<p class="hint">Зачекайте, ваші фото ще завантажуються.</p>';
     else if(ownBad)h+='<p class="hint">Приберіть фото, які не завантажилися.</p>';
+    else if(noImgbb)h+='<p class="hint">Для фото з файлу потрібен ключ imgbb. Додайте його в налаштуваннях.</p>';
     if(P.confirm&&readyNow){
       h+=`<p class="hint">Буде опубліковано ${nPh>1?'карусель із '+Math.min(nPh,10)+' фото':'1 фото'} в акаунті. Це побачать підписники.</p>${ackBox('ack')}`;
       h+=`<button class="btn primary block mt" data-act="pubgo" ${warns.length&&!P.ack?'disabled':''}>Так, опублікувати</button><button class="btn block mt" data-act="pubcancel">Скасувати</button>`;
@@ -551,36 +692,41 @@ async function gfetch(url,init){
     return {res,j};
   }
 }
+const blobB64=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=()=>rej(r.error);r.readAsDataURL(b)});
 async function genCaption(){
   const P=S.cur,o=P.rec,s=S.settings;
   P.busy=true;P.err='';renderCap();renderPub();
   try{
     const sys=`Ти — копірайтер інтернет-магазину. Пишеш підписи до постів в Instagram українською мовою.
+Тобі дають: назву товару, категорію, інколи власні_відомості від власника, а також фото товару.
 Правила:
-- Використовуй лише факти з наданих даних. Нічого не вигадуй: розміри, потужність, матеріали, гарантію, сертифікати.
-- Поле власні_відомості містить факти від власника магазину: вони мають пріоритет над рештою даних, використай їх обов’язково.
+- Назва з прайсу — це SEO-рядок з ключовими словами й повторами. Не копіюй її, а перетвори на короткий природний заголовок.
+- Факти бери лише з назви, власних відомостей і того, що чітко видно на фото (тип речі, колір, вигляд). Нічого не вигадуй: розміри, матеріали, потужність, гарантію, комплектацію, сертифікати, країну виробництва.
+- Поле власні_відомості містить факти від власника магазину: вони мають пріоритет, використай їх обов’язково.
 - Не обіцяй лікувальних чи медичних ефектів, не використовуй слова «лікує», «зцілює» тощо.
 - Не вказуй ціну, контакти й посилання: їх додасть застосунок.
-- Структура: 1) заголовок із 1 емодзі; 2) 1–2 речення про те, кому й навіщо потрібен товар; 3) 3–5 рядків із ключовими характеристиками, кожен із емодзі на початку; 4) за потреби комплектація одним рядком.
+- Структура: 1) заголовок із 1 емодзі; 2) 1–2 речення про те, кому й навіщо потрібен товар; 3) до 4 рядків із ключовими особливостями, кожен із емодзі на початку, лише з відомих фактів (якщо фактів мало, зроби 1–2 рядки або пропусти цей пункт); 4) комплектація одним рядком лише якщо вона відома.
 - Тон: дружній і живий, без крику й суцільних великих літер. Поле text не довше 700 символів.
-- Переклади російські терміни з даних українською.
+- Переклади російські слова з даних українською.
 - hashtags: ${+s.tags||8} релевантних хештегів українською та англійською, без назв чужих брендів, без пробілів.
 Відповідай ТІЛЬКИ JSON без додаткового тексту: {"text":"...","hashtags":["#..."]}.${s.extra?'\nДодаткові вимоги власника магазину: '+s.extra:''}`;
-    const data={
-      назва:o.nameUa||o.name,категорія:[o.cat,o.sub].filter(Boolean).join(' / '),
-      бренд:o.brand&&o.brand!=='Без бренда'?o.brand:'',країна:o.country,
-      характеристики:o.params.map(([k,v])=>k+': '+v),опис:o.desc.slice(0,1800),власні_відомості:(P.notes||'').trim()
-    };
+    const data={назва:o.name,категорія:[o.cat,o.sub].filter(Boolean).join(' / ')};
+    const notes=(P.notes||'').trim();
+    if(notes)data.власні_відомості=notes;
+    const parts=[{text:JSON.stringify(data)}];
+    if(P.feed&&P.feed.blob){
+      try{parts.push({inlineData:{mimeType:P.feed.blob.type||'image/jpeg',data:await blobB64(P.feed.blob)}})}catch{}
+    }
     const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(s.model||'gemini-3.5-flash')}:generateContent`;
     const {res,j}=await gfetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':s.geminiKey},body:JSON.stringify({
       systemInstruction:{parts:[{text:sys}]},
-      contents:[{role:'user',parts:[{text:JSON.stringify(data)}]}],
+      contents:[{role:'user',parts}],
       generationConfig:{responseMimeType:'application/json',temperature:0.8}
     })});
     if(!res.ok)throw new Error(j.error?.message||('Gemini: HTTP '+res.status));
-    const parts=(j.candidates?.[0]?.content?.parts||[]).filter(p=>!p.thought&&p.text).map(p=>p.text);
-    if(!parts.length)throw new Error('Gemini не повернув текст. Спробуйте ще раз.');
-    const raw=parts.join('').trim().replace(/^```(?:json)?\s*|\s*```$/g,'');
+    const out0=(j.candidates?.[0]?.content?.parts||[]).filter(p=>!p.thought&&p.text).map(p=>p.text);
+    if(!out0.length)throw new Error('Gemini не повернув текст. Спробуйте ще раз.');
+    const raw=out0.join('').trim().replace(/^```(?:json)?\s*|\s*```$/g,'');
     let out;try{out=JSON.parse(raw)}catch{out={text:raw,hashtags:[]}}
     P.caption=composeCaption(o,String(out.text||raw),Array.isArray(out.hashtags)?out.hashtags:[]);
   }catch(e){P.err=e.message||String(e)}
@@ -609,11 +755,13 @@ async function waitReady(id){
 }
 async function publish(){
   const P=S.cur,s=S.settings;
-  const urls=photoUrls(P);
   const cap=$('#cap').value;
   P.pubBusy=true;P.confirm=false;P.pub=null;
   const say=m=>{P.pubMsg=m;renderPub()};
   try{
+    if(P.useFeed&&P.feed&&!P.feed.url){say('Завантажую фото з файлу…');await ensureFeedUrl(P)}
+    const urls=photoUrls(P);
+    if(!urls.length)throw new Error('Немає фото для публікації.');
     let creation;
     if(urls.length===1){
       say('Створюю пост…');
@@ -639,23 +787,26 @@ async function publish(){
   P.pubBusy=false;renderPub();
 }
 
-// ---------- own photos (gallery) ----------
+// ---------- images: any format -> JPEG for Instagram ----------
 function loadImg(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>rej(new Error('Не вдалося прочитати зображення'));im.src=src})}
-// Будь-який формат -> JPEG, співвідношення сторін у межах, які приймає Instagram (від 4:5 до 1.91:1).
-async function toJpegB64(file){
+// Співвідношення сторін у межах, які приймає Instagram (від 4:5 до 1.91:1).
+// target — бажана довша сторона (для маленьких фото з файлу: збільшуємо, бо Instagram вимагає ширину від 320 px).
+async function toJpegB64(file,{target=0}={}){
   const url=URL.createObjectURL(file);
   try{
     const im=await loadImg(url);
-    const sc=Math.min(1,1600/Math.max(im.naturalWidth,im.naturalHeight));
+    const mx=Math.max(im.naturalWidth,im.naturalHeight);
+    const sc=target?target/mx:Math.min(1,1600/mx);
     const w=Math.round(im.naturalWidth*sc),h=Math.round(im.naturalHeight*sc);
     let cw=w,ch=h;const ratio=w/h;
     if(ratio<0.8)cw=Math.round(h*0.8);else if(ratio>1.91)ch=Math.round(w/1.91);
     const cv=document.createElement('canvas');cv.width=cw;cv.height=ch;
     const ctx=cv.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,cw,ch);
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
     ctx.drawImage(im,(cw-w)/2,(ch-h)/2,w,h);
     const th=document.createElement('canvas');th.width=160;th.height=Math.round(160*ch/cw);
     th.getContext('2d').drawImage(cv,0,0,th.width,th.height);
-    return {b64:cv.toDataURL('image/jpeg',0.9).split(',')[1],thumb:th.toDataURL('image/jpeg',0.7)};
+    return {b64:cv.toDataURL('image/jpeg',0.92).split(',')[1],thumb:th.toDataURL('image/jpeg',0.7)};
   }finally{URL.revokeObjectURL(url)}
 }
 async function uploadImgbb(b64,name){
@@ -670,10 +821,10 @@ async function addOwn(files){
   const P=S.cur;
   if(!S.settings.imgbbKey){toast('Додайте ключ imgbb в налаштуваннях');setTab('settings');return}
   for(const f of files){
-    if(P.own.length>=10){toast('Максимум 10 фото');break}
+    const max=10-(P.useFeed&&P.feed?1:0);
+    if(P.own.length>=max){toast('Максимум '+max+' власних фото');break}
     const item={state:'uploading',thumb:'',url:'',err:''};
     P.own.push(item);
-    while(P.own.length+P.sel.length>10&&P.sel.length)P.sel.pop();
     if(S.cur===P){renderPhotos();renderPub()}
     try{
       const {b64,thumb}=await toJpegB64(f);
@@ -699,11 +850,12 @@ async function schedGo(){
   const v=($('#schedAt')||{}).value||Z.value,at=new Date(v).getTime();
   if(!v||!isFinite(at)){Z.err='Вкажіть дату й час.';renderPub();return}
   if(at<Date.now()+2*60e3){Z.err='Час має бути щонайменше через 2 хвилини від зараз.';renderPub();return}
-  if(P.sel.some(i=>!isJpeg(P.rec.pics[i]))){Z.err='Є фото не у форматі JPEG. Приберіть їх, інакше Instagram відхилить публікацію.';renderPub();return}
-  const urls=photoUrls(P);
   Z.busy=true;Z.err='';Z.value=v;renderPub();
   try{
-    await wk('/posts',{method:'POST',body:{at,caption:$('#cap').value,images:urls,code:P.rec.code,title:P.rec.nameUa||P.rec.name,thumb:urls[0]}});
+    await ensureFeedUrl(P);
+    const urls=photoUrls(P);
+    if(!urls.length)throw new Error('Немає фото для публікації.');
+    await wk('/posts',{method:'POST',body:{at,caption:$('#cap').value,images:urls,code:P.rec.code,title:P.rec.name,thumb:urls[0]}});
     Z.done={at};Z.open=false;
     S.posted[P.rec.key]=Date.now();await kvSet('posted',S.posted);
     S.sched.loaded=false;
@@ -812,8 +964,8 @@ setInterval(()=>{if(!$('#viewSched').hidden&&!S.sched.edit&&!S.sched.loading&&wo
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function candidates(){
   const now=Date.now();
-  const pool=S.offers.filter(o=>o.inStock&&o.qty>=2&&o.price>0&&(o.nameUa||o.name)
-    &&o.pics.filter(isJpeg).length>=2&&!riskHits(o).length&&!(S.posted[o.key]&&now-S.posted[o.key]<30*864e5));
+  const pool=S.offers.filter(o=>o.inStock&&o.price>0&&o.name&&o.hasPhoto
+    &&!riskHits(o).length&&!(S.posted[o.key]&&now-S.posted[o.key]<30*864e5));
   const byCat=new Map();
   shuffle(pool).forEach(o=>{const k=o.cat||'—';if(!byCat.has(k))byCat.set(k,[]);byCat.get(k).push(o)});
   const out=[];
@@ -822,14 +974,14 @@ function candidates(){
 }
 async function pickProducts(){
   const s=S.settings;
-  if(!S.offers.length){toast('Спочатку завантажте фід у налаштуваннях');setTab('settings');return}
+  if(!S.offers.length){toast('Спочатку завантажте файл у налаштуваннях');setTab('settings');return}
   if(!s.geminiKey){toast('Потрібен ключ Gemini');setTab('settings');return}
-  const me=S.cur={type:'suggest',busy:true,items:null,err:''};
+  const me=setCur({type:'suggest',busy:true,items:null,err:''});
   renderResult();
   try{
     const pool=candidates();
-    if(pool.length<5)throw new Error('Замало товарів у наявності для підбору. Завантажте свіжий фід.');
-    const list=pool.map(o=>`${o.code} | ${(o.nameUa||o.name).slice(0,70)} | ${o.cat}${o.sub?' / '+o.sub:''} | ${fmt(o.price)} грн`).join('\n');
+    if(pool.length<5)throw new Error('Замало товарів у наявності для підбору. Завантажте свіжий файл.');
+    const list=pool.map(o=>`${o.code} | ${o.name.slice(0,70)} | ${o.cat}${o.sub?' / '+o.sub:''} | ${fmt(o.price)} грн`).join('\n');
     const useSearch=s.useSearch!==false;
     const today=new Date().toLocaleDateString('uk-UA',{day:'numeric',month:'long',year:'numeric'});
     const sys=`Ти — аналітик попиту для українського інтернет-магазину. Сьогодні ${today}.
@@ -877,16 +1029,9 @@ $('#result').addEventListener('click',e=>{
   else if(a==='schedopen'){const d=new Date();d.setDate(d.getDate()+1);d.setHours(10,0,0,0);P.sched={open:true,value:nowLocalInput(d),busy:false,err:''};P.confirm=false;P.ack=false;renderPub()}
   else if(a==='schedcancel'){P.sched=null;renderPub()}
   else if(a==='schedgo')schedGo();
-  else if(a==='pick'){
-    const i=+b.dataset.i,at=P.sel.indexOf(i);
-    const max=10-P.own.length;
-    if(at>=0)P.sel.splice(at,1);else if(P.sel.length>=max)return toast('Максимум '+max+' фото в каруселі');else P.sel.push(i);
-    renderPhotos();renderPub();
-  }
-  else if(a==='allpics'){P.all=true;renderPhotos()}
   else if(a==='gen')genCaption();
   else if(a==='own'){
-    P.caption=composeCaption(P.rec,P.rec.nameUa||P.rec.name,[]);P.err='';renderCap();renderPub();
+    P.caption=composeCaption(P.rec,P.rec.name,[]);P.err='';renderCap();renderPub();
     const t=$('#cap');if(t){t.focus();const i=t.value.indexOf('\n');t.setSelectionRange(i<0?t.value.length:i,i<0?t.value.length:i)}
   }
   else if(a==='toSettings')setTab('settings');
@@ -906,6 +1051,7 @@ $('#result').addEventListener('change',e=>{
   const id=e.target.id;
   if(id==='ack'||id==='schedAck'){S.cur.ack=e.target.checked;renderPub()}
   else if(id==='schedAt'){S.cur.sched.value=e.target.value}
+  else if(id==='useFeed'){S.cur.useFeed=e.target.checked;renderPhotos();renderPub()}
   else if(id==='ownFile'){const fs=[...e.target.files];e.target.value='';if(fs.length)addOwn(fs)}
 });
 
@@ -917,9 +1063,8 @@ function fld(k,label,{type='text',hint='',ph='',opts=null,rows=0}={}){
   return `<label class="f">${label}<input data-k="${k}" type="${type}" value="${esc(v)}" placeholder="${esc(ph)}" autocomplete="off" ${type==='number'?'inputmode="decimal" step="any"':''}>${hint?`<small>${hint}</small>`:''}</label>`;
 }
 function renderSettings(){
-  $('#fFeedUrl').innerHTML=fld('feedUrl','Посилання на фід (.xml)',{type:'url',hint:'Оновлюється автоматично при відкритті, якщо фід старший за 12 годин.'});
   $('#fPrice').innerHTML=
-    fld('base','Від чого рахувати',{opts:[['price','Ціна у фіді (price)'],['drp','Дроп-ціна (drp)']]})+
+    `<p class="hint">Основа — ціна з вашого файлу. Націнка додається зверху.</p>`+
     `<div class="two">${fld('markupPct','Націнка, %',{type:'number'})}${fld('markupFixed','Плюс, грн',{type:'number'})}</div>`+
     fld('round','Округлювати вгору до',{opts:[[0,'Без округлення'],[5,'5 грн'],[10,'10 грн'],[50,'50 грн']]})+
     `<label class="chk"><input type="checkbox" data-k="showPrice" ${S.settings.showPrice?'checked':''}> Додавати ціну в підпис</label>`;
@@ -931,7 +1076,7 @@ function renderSettings(){
     `<label class="chk"><input type="checkbox" data-k="useSearch" ${S.settings.useSearch?'checked':''}> Пошук Google при автопідборі<span class="hint" style="display:block">Потребує платного тарифу Gemini API (є безкоштовний місячний ліміт). Без нього підбір іде за сезоном і знаннями моделі.</span></label>`+
     fld('cta','Рядок після ціни',{ph:'📩 Замовлення — в Direct'})+
     fld('extra','Додаткові вказівки для стилю',{rows:1,ph:'Наприклад: звертайся на «ви», менше емодзі'});
-  $('#fImg').innerHTML=fld('imgbbKey','Ключ imgbb',{type:'password',hint:'Безкоштовний ключ: api.imgbb.com. Потрібен, щоб Instagram міг завантажити ваші фото з галереї за посиланням.'});
+  $('#fImg').innerHTML=fld('imgbbKey','Ключ imgbb',{type:'password',hint:'Безкоштовний ключ: api.imgbb.com. Потрібен для будь-якого фото в пості: Instagram завантажує фото тільки за посиланням, тож і фото з файлу, і ваші з галереї спершу потрапляють сюди.'});
   $('#fWk').innerHTML=
     fld('workerUrl','Адреса Worker',{ph:'https://ig-scheduler.ваш-акаунт.workers.dev',hint:'Як його створити, описано на початку файлу worker.js.'})+
     fld('workerKey','Ключ доступу',{type:'password',hint:'Той самий, що ADMIN_KEY у Worker.'});
@@ -950,58 +1095,51 @@ $('#viewSettings').addEventListener('change',async e=>{
   if(k==='workerUrl'||k==='workerKey'){S.sched.loaded=false;S.sched.items=[]}
   await kvSet('settings',S.settings);
   toast('Збережено');
-  if(S.cur&&S.cur.type==='rec'){renderProd();renderPub();renderCap()}
+  if(S.cur&&S.cur.type==='rec'){renderProd();renderPhotos();renderPub();renderCap()}
 });
 
-// ---------- імпорт фіду (за посиланням або з файлу) ----------
+// ---------- імпорт xlsx ----------
 let feedBusy=false;
-async function importFeed(getSrc,name){
-  if(feedBusy)return false;
+async function importFeed(f){
+  if(feedBusy)return;
   feedBusy=true;
   const bar=$('#feedBar'),fill=bar.firstElementChild,prog=$('#feedProg');
-  bar.hidden=false;fill.style.width='0';prog.textContent='Завантажую фід…';
-  $('#btnFeedUpdate').disabled=true;
+  const pct=p=>{fill.style.width=Math.round(p)+'%'};
+  bar.hidden=false;pct(0);prog.textContent='Читаю таблицю…';
   try{
-    const src=await getSrc();
-    const all=[];
-    const n=await parseFeed(src,async o=>{all.push(o)},(pr,cnt)=>{
-      fill.style.width=Math.round(pr*100)+'%';prog.textContent=`Розібрано товарів: ${fmt(cnt)}`});
-    if(!n)throw new Error('У файлі не знайдено товарів. Потрібен YML-файл Websklad.');
-    // стару базу замінюємо тільки після успішного читання всього фіду
-    await offersClear();
-    for(let i=0;i<all.length;i+=400)await offersPut(all.slice(i,i+400));
-    setOffers(all);
-    S.meta={at:Date.now(),name,count:n};
+    await new Promise(r=>setTimeout(r,30)); // дати браузеру показати «Читаю таблицю…»
+    const {z,offers,jobs}=await readXlsx(f);
+    if(!offers.length)throw new Error('У файлі не знайдено товарів. Потрібен експорт Websklad (.xlsx) з колонками «Назва» й «Артикул».');
+    pct(8);prog.textContent=`Знайдено товарів: ${fmt(offers.length)}. Зберігаю…`;
+    // стару базу замінюємо лише тепер, коли таблицю успішно прочитано
+    await offersClear();await imgClear();
+    for(let i=0;i<offers.length;i+=400)await offersPut(offers.slice(i,i+400));
+    setOffers(offers);
+    S.meta={at:Date.now(),name:f.name,count:offers.length};
     await kvSet('meta',S.meta);
-    fill.style.width='100%';
-    prog.textContent=`Готово: ${fmt(n)} товарів.`;
-    S.cur=null;renderResult();renderStatus();
-    toast('Фід оновлено');
-    return true;
+    setCur(null);renderResult();renderStatus();
+    let saved=0,failed=0;const B=24;
+    for(let i=0;i<jobs.length;i+=B){
+      const chunk=jobs.slice(i,i+B);
+      const items=await Promise.all(chunk.map(async j=>{
+        try{const u8=await zipRead(z,j.path);return u8?[j.key,{b:u8.buffer,t:mimeOf(j.path)}]:null}catch{return null}
+      }));
+      const ok=items.filter(Boolean);
+      await imgPut(ok);
+      saved+=ok.length;failed+=chunk.length-ok.length;
+      pct(8+92*Math.min(1,(i+B)/jobs.length));
+      prog.textContent=`Зберігаю фото: ${fmt(saved)} з ${fmt(jobs.length)}`;
+    }
+    pct(100);
+    prog.textContent=`Готово: ${fmt(offers.length)} товарів, ${fmt(saved)} фото.${failed?` Не вдалося прочитати фото: ${fmt(failed)}.`:''}`;
+    toast('Файл завантажено');
   }catch(err){
-    let m=err.message||String(err);
-    if(/failed to fetch|networkerror|load failed/i.test(m))
-      m='Не вдалося завантажити за посиланням (імовірно, сервер блокує запити з браузера, CORS). Завантажте файл вручну або проксіюйте через Worker.';
-    prog.textContent='Помилка: '+m;
-    return false;
-  }finally{
-    $('#btnFeedUpdate').disabled=false;
-    feedBusy=false;
-  }
+    prog.textContent='Помилка: '+(err.message||err);
+  }finally{feedBusy=false}
 }
-const fromUrl=()=>async()=>{
-  const url=S.settings.feedUrl;
-  if(!url)throw new Error('Вкажіть посилання на фід.');
-  const res=await fetch(url,{cache:'no-store'});
-  if(!res.ok)throw new Error('Сервер відповів HTTP '+res.status);
-  if(!res.body)throw new Error('Браузер не підтримує потокове читання.');
-  return {reader:res.body.getReader(),size:+res.headers.get('content-length')||0};
-};
-const feedName=()=>(S.settings.feedUrl||'').split('?')[0].split('/').pop()||'feed.xml';
-$('#btnFeedUpdate').onclick=()=>importFeed(fromUrl(),feedName());
 $('#feedFile').addEventListener('change',async e=>{
   const f=e.target.files[0];if(!f)return;
-  await importFeed(async()=>({reader:f.stream().getReader(),size:f.size}),f.name);
+  await importFeed(f);
   e.target.value='';
 });
 
@@ -1033,12 +1171,6 @@ $('#btnTestIg').onclick=async()=>{
   S.posted=(await kvGet('posted'))||{};
   renderSettings();renderStatus();
   if(!S.offers.length)setTab('settings');
-  // автооновлення фіду, якщо він старший за 12 годин
-  const stale=!S.meta?.at||Date.now()-S.meta.at>12*36e5;
-  if(S.settings.feedUrl&&stale){
-    const ok=await importFeed(fromUrl(),feedName());
-    if(!ok)toast('Не вдалося оновити фід автоматично');
-  }
 })();
 </script>
 </body>
