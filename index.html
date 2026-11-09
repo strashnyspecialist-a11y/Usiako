@@ -294,6 +294,8 @@ async function dbOpen(){
       r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);
     });
     DB.ok=true;
+    const tx=DB.db.transaction('kv','readwrite');tx.objectStore('kv').put(1,'__t');await txDone(tx);
+    if(await rq(DB.db.transaction('kv').objectStore('kv').get('__t'))!==1)throw 0;
   }catch{DB.ok=false}
 }
 async function kvGet(k){
@@ -307,9 +309,34 @@ async function kvSet(k,v){
   if(!DB.ok)return;
   try{const tx=DB.db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);await txDone(tx)}catch{}
 }
-async function offersClear(){DB.offers=[];if(!DB.ok)return;const tx=DB.db.transaction('offers','readwrite');tx.objectStore('offers').clear();await txDone(tx)}
-async function offersPut(arr){DB.offers.push(...arr);if(!DB.ok)return;const tx=DB.db.transaction('offers','readwrite');const st=tx.objectStore('offers');arr.forEach(o=>st.put(o));await txDone(tx)}
+async function offersClear(){DB.offers=[];if(!DB.ok)return;try{const tx=DB.db.transaction('offers','readwrite');tx.objectStore('offers').clear();await txDone(tx)}catch{DB.ok=false}}
+async function offersPut(arr){DB.offers.push(...arr);if(!DB.ok)return;try{const tx=DB.db.transaction('offers','readwrite');const st=tx.objectStore('offers');arr.forEach(o=>st.put(o));await txDone(tx)}catch{DB.ok=false}}
 async function offersAll(){if(!DB.ok)return DB.offers;try{return await rq(DB.db.transaction('offers').objectStore('offers').getAll())}catch{return DB.offers}}
+async function offersCount(){return rq(DB.db.transaction('offers').objectStore('offers').count())}
+
+// запасне сховище для фіду (Cache API), якщо IndexedDB не працює
+const FEED_REQ='https://ws-insta.local/feed.json';
+async function cacheSave(all){
+  try{
+    if(!window.caches)return false;
+    const c=await caches.open('ws-insta');
+    await c.put(FEED_REQ,new Response(JSON.stringify(all),{headers:{'Content-Type':'application/json'}}));
+    return true;
+  }catch{return false}
+}
+async function cacheLoad(){
+  try{
+    if(!window.caches)return [];
+    const c=await caches.open('ws-insta');
+    const r=await c.match(FEED_REQ);
+    return r?await r.json():[];
+  }catch{return []}
+}
+function storeNote(){
+  if(S.store==='idb')return ' Файл збережено в браузері.';
+  if(S.store==='cache')return ' Файл збережено в браузері (запасне сховище).';
+  return ' Браузер не зберігає файл (приватна вкладка, вбудований перегляд або заблоковане сховище): після оновлення сторінки його доведеться завантажити знову. Відкрийте застосунок у звичайному браузері.';
+}
 
 // ---------- state ----------
 const DEF={
@@ -318,7 +345,7 @@ const DEF={
   igId:'',igToken:'',host:'https://graph.facebook.com',ver:'v23.0',
   stop:"victoria's secret, nike, adidas, puma, gucci, louis vuitton, chanel, dior, prada, versace, rolex, apple, samsung, jbl, dyson, lego"
 };
-const S={settings:{...DEF},offers:[],byCode:new Map(),meta:null,cur:null,posted:{},sched:{items:[],loaded:false,loading:false,err:'',edit:null,del:null,now:null}};
+const S={settings:{...DEF},offers:[],byCode:new Map(),meta:null,store:'',cur:null,posted:{},sched:{items:[],loaded:false,loading:false,err:'',edit:null,del:null,now:null}};
 
 function setOffers(rows){S.offers=rows;S.byCode=new Map(rows.map(o=>[o.key,o]))}
 
@@ -383,7 +410,7 @@ function renderStatus(){
   const d=m?.at?new Date(m.at).toLocaleString('uk-UA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
   const inS=S.offers.filter(o=>o.inStock).length;
   $('#feedStatus').innerHTML=`<b>${fmt(n)}</b> товарів, у наявності <b>${fmt(inS)}</b>${d?' · оновлено '+d:''}`;
-  $('#feedInfo').textContent=`Завантажено ${fmt(n)} товарів${m?.name?' з файлу '+m.name:''}${d?', '+d:''}.${DB.ok?'':' Сховище недоступне: після закриття сторінки файл доведеться завантажити знову.'}`;
+  $('#feedInfo').textContent=`Завантажено ${fmt(n)} товарів${m?.name?' з файлу '+m.name:''}${d?', '+d:''}.${storeNote()}`;
 }
 
 // ---------- search & product view ----------
@@ -983,6 +1010,10 @@ $('#feedFile').addEventListener('change',async e=>{
     if(batch.length)await offersPut(batch);
     if(!n)throw new Error('У файлі не знайдено товарів. Потрібен YML-файл Websklad.');
     setOffers(all);
+    prog.textContent='Зберігаю в браузері…';
+    let idbOk=false;try{idbOk=DB.ok&&(await offersCount())===n}catch{}
+    const cacheOk=await cacheSave(all);
+    S.store=idbOk?'idb':cacheOk?'cache':'';
     S.meta={at:Date.now(),name:f.name,count:n};
     await kvSet('meta',S.meta);
     prog.textContent=`Готово: ${fmt(n)} товарів.`;
@@ -1014,7 +1045,11 @@ $('#btnTestIg').onclick=async()=>{
 (async function(){
   await dbOpen();
   S.settings={...DEF,...((await kvGet('settings'))||{})};
-  setOffers(await offersAll());
+  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch{}
+  let rows=await offersAll();
+  if(rows.length)S.store='idb';
+  else{rows=await cacheLoad();if(rows.length)S.store='cache'}
+  setOffers(rows);
   S.meta=(await kvGet('meta'))||null;
   S.posted=(await kvGet('posted'))||{};
   renderSettings();renderStatus();
