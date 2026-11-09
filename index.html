@@ -280,7 +280,8 @@ async function parseFeed(file,onOffer,onProgress){
 }
 // </PARSER>
 
-// ---------- storage (IndexedDB with in-memory fallback) ----------
+// ---------- storage (localStorage для налаштувань; IndexedDB для товарів; запасний варіант у пам'яті) ----------
+const LS='ws-insta:';
 const DB={db:null,ok:false,kv:new Map(),offers:[]};
 const rq=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 const txDone=tx=>new Promise((res,rej)=>{tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error)});
@@ -295,8 +296,17 @@ async function dbOpen(){
     DB.ok=true;
   }catch{DB.ok=false}
 }
-async function kvGet(k){if(!DB.ok)return DB.kv.get(k);try{return await rq(DB.db.transaction('kv').objectStore('kv').get(k))}catch{return DB.kv.get(k)}}
-async function kvSet(k,v){DB.kv.set(k,v);if(!DB.ok)return;try{const tx=DB.db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);await txDone(tx)}catch{}}
+async function kvGet(k){
+  try{const v=localStorage.getItem(LS+k);if(v!==null)return JSON.parse(v)}catch{}
+  if(!DB.ok)return DB.kv.get(k);
+  try{return await rq(DB.db.transaction('kv').objectStore('kv').get(k))}catch{return DB.kv.get(k)}
+}
+async function kvSet(k,v){
+  DB.kv.set(k,v);
+  try{localStorage.setItem(LS+k,JSON.stringify(v))}catch{}
+  if(!DB.ok)return;
+  try{const tx=DB.db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);await txDone(tx)}catch{}
+}
 async function offersClear(){DB.offers=[];if(!DB.ok)return;const tx=DB.db.transaction('offers','readwrite');tx.objectStore('offers').clear();await txDone(tx)}
 async function offersPut(arr){DB.offers.push(...arr);if(!DB.ok)return;const tx=DB.db.transaction('offers','readwrite');const st=tx.objectStore('offers');arr.forEach(o=>st.put(o));await txDone(tx)}
 async function offersAll(){if(!DB.ok)return DB.offers;try{return await rq(DB.db.transaction('offers').objectStore('offers').getAll())}catch{return DB.offers}}
@@ -936,12 +946,24 @@ function renderSettings(){
     `<div class="two">${fld('ver','Версія API')}${fld('host','Адреса API')}</div>`;
   $('#fStop').innerHTML=fld('stop','Слова через кому',{rows:1,hint:'Якщо бренд або назва товару містить одне з них, з’явиться попередження перед публікацією.'});
 }
-$('#viewSettings').addEventListener('change',async e=>{
-  const k=e.target.dataset.k;if(!k)return;
-  let v=e.target.type==='checkbox'?e.target.checked:e.target.value.trim();
+function parseSetting(k,raw){
+  let v=raw;
   if(['markupPct','markupFixed','tags'].includes(k))v=parseFloat(v)||0;
   if(k==='round')v=parseInt(v,10)||0;
-  S.settings[k]=v;
+  return v;
+}
+// Збереження одразу під час набору (на телефоні "change" спрацьовує лише після втрати фокуса)
+$('#viewSettings').addEventListener('input',e=>{
+  const k=e.target.dataset.k;
+  if(!k||e.target.type==='checkbox'||e.target.tagName==='SELECT')return;
+  S.settings[k]=parseSetting(k,e.target.value.trim());
+  if(k==='workerUrl'||k==='workerKey'){S.sched.loaded=false;S.sched.items=[]}
+  kvSet('settings',S.settings);
+});
+$('#viewSettings').addEventListener('change',async e=>{
+  const k=e.target.dataset.k;if(!k)return;
+  const raw=e.target.type==='checkbox'?e.target.checked:e.target.value.trim();
+  S.settings[k]=e.target.type==='checkbox'?raw:parseSetting(k,raw);
   if(k==='workerUrl'||k==='workerKey'){S.sched.loaded=false;S.sched.items=[]}
   await kvSet('settings',S.settings);
   toast('Збережено');
